@@ -23,7 +23,8 @@ def main(cfg):
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {EUREKA_ROOT_DIR}")
 
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.api_key = "..."
+    openai.api_base = "http://0.0.0.0:8000/v1"
 
     task = cfg.env.task
     task_description = cfg.env.description
@@ -98,16 +99,16 @@ def main(cfg):
                 logging.info("Code terminated due to too many failed attempts!")
                 exit()
 
-            responses.extend(response_cur["choices"])
-            prompt_tokens = response_cur["usage"]["prompt_tokens"]
-            total_completion_token += response_cur["usage"]["completion_tokens"]
-            total_token += response_cur["usage"]["total_tokens"]
+            responses.extend(response_cur["choices"])  #type: ignore
+            prompt_tokens = response_cur["usage"]["prompt_tokens"]  #type: ignore
+            total_completion_token += response_cur["usage"]["completion_tokens"]  #type: ignore
+            total_token += response_cur["usage"]["total_tokens"]  #type: ignore
 
         if cfg.sample == 1:
             logging.info(f"Iteration {iter}: GPT Output:\n " + responses[0]["message"]["content"] + "\n")
 
         # Logging Token Information
-        logging.info(f"Iteration {iter}: Prompt Tokens: {prompt_tokens}, Completion Tokens: {total_completion_token}, Total Tokens: {total_token}")
+        logging.info(f"Iteration {iter}: Prompt Tokens: {prompt_tokens}, Completion Tokens: {total_completion_token}, Total Tokens: {total_token}")  #type: ignore
 
         code_runs = [] 
         rl_runs = []
@@ -128,7 +129,7 @@ def main(cfg):
                 if code_string is not None:
                     code_string = code_string.group(1).strip()
                     break
-            code_string = response_cur if not code_string else code_string
+            code_string = response_cur if not code_string else code_string  #type: ignore
 
             # Remove unnecessary imports
             lines = code_string.split("\n")
@@ -154,7 +155,7 @@ def main(cfg):
             shutil.copy(output_file, f"env_iter{iter}_response{response_id}.py")
 
             # Find the freest GPU to run GPU-accelerated RL
-            set_freest_gpu()
+            # set_freest_gpu()  # TODO not working on luis slurm cluster
             
             # Execute the python file with flags
             rl_filepath = f"env_iter{iter}_response{response_id}.txt"

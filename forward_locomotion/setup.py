@@ -9,8 +9,5 @@ setup(
     packages=find_packages(),
     author_email='willjhliang@gmail.com',
     install_requires=[
-        'matplotlib',
-        'gym',
-        'ml-logger==0.8.117',
     ]
 )

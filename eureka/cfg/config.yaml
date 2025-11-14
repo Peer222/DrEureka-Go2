@@ -9,7 +9,7 @@ hydra:
     chdir: True
 
 # LLM parameters
-model: gpt-4-0125-preview
+model: /bigwork/nhwpduep/data/openai/gpt-oss-20b  # original: gpt-4-0125-preview
 temperature: 1.0
 
 # Eureka parameters
