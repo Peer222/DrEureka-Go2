@@ -11,8 +11,10 @@ from pathlib import Path
 import shutil
 import time 
 
-from utils.misc import * 
+# relative imports for editor
+from utils.misc import *
 from utils.extract_task_code import *
+
 
 EUREKA_ROOT_DIR = os.getcwd()
 ROOT_DIR = f"{EUREKA_ROOT_DIR}/.."
@@ -157,6 +159,7 @@ def main(cfg):
             # Find the freest GPU to run GPU-accelerated RL
             # set_freest_gpu()  # TODO not working on luis slurm cluster
             
+            # TODO support parallel executions again
             # Execute the python file with flags
             rl_filepath = f"env_iter{iter}_response{response_id}.txt"
             with open(rl_filepath, 'w') as f:
@@ -165,9 +168,10 @@ def main(cfg):
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 process = subprocess.Popen(command, stdout=f, stderr=f)
-            block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,
-                                 log_status=True, iter_num=iter, response_id=response_id)
+            #block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,
+            #                     log_status=True, iter_num=iter, response_id=response_id)
             rl_runs.append(process)
+            block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)
 
         # Gather RL training results and construct reward reflection
         code_feedbacks = []

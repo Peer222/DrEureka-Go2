@@ -1,7 +1,9 @@
+from typing import List
 import subprocess
 import os
 import json
 import logging
+import time
 
 from utils.extract_task_code import file_to_string
 
@@ -39,6 +41,17 @@ def block_until_training(rl_filepath, success_keyword, failure_keyword, log_stat
             if log_status and "Traceback" in rl_log:
                 logging.info(f"Iteration {iter_num}: Code Run {response_id} execution error!")
             break
+
+def block_until_queue_finished(processes: List[subprocess.Popen], num_gpus: int, processes_per_gpu: int, check_frequency: int = 60):
+    while True:
+        num_running = 0
+        for p in processes:
+            if p.poll() == None:
+                num_running += 1
+        if num_running < num_gpus * processes_per_gpu:
+            logging.info(f"Process queue open: {num_running} of {num_gpus * processes_per_gpu} running. Continue.")
+            break
+        time.sleep(check_frequency)
 
 def construct_run_log(stdout_str):
     run_log = {}

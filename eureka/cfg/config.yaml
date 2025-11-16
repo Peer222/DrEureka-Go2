@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - env: forward_locomotion
+  - env: forward_locomotion_go2
   - override hydra/launcher: local
   - override hydra/output: local
 
@@ -15,6 +15,10 @@ temperature: 1.0
 # Eureka parameters
 iteration: 5                # how many iterations of Eureka to run
 sample: 16                  # number of Eureka samples to generate per iteration
+
+# GPU setup
+num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat file not found)
+processes_per_gpu: 2       # 3 execution failed in dry run and code stuck (original code probably had enough gpus to run all samples per iteration in parallel)
 
 # Weights and Biases
 use_wandb: False            # whether to use wandb for logging
