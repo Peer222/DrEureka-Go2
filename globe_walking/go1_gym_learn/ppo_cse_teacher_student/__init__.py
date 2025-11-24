@@ -2,6 +2,7 @@ import time
 from collections import deque
 import copy
 import os
+from pathlib import Path
 
 import torch
 import torch.distributed as dist
@@ -13,6 +14,8 @@ from params_proto import PrefixProto
 
 from .actor_critic import ActorCritic
 from .rollout_storage import RolloutStorage
+
+from globe_walking.go1_gym import MINI_GYM_ROOT_DIR
 
 
 def class_to_dict(obj) -> dict:
@@ -236,58 +239,53 @@ class Runner:
                 if it % RunnerArgs.save_interval == 0 or it == tot_iter - 1:
                     with logger.Sync():
                         print(f"Saving model at iteration {it}")
+                        path = Path(f'checkpoints/')
+                        path.mkdir(exist_ok=True)
 
-                        logger.torch_save(self.alg.actor_critic.state_dict(), f"checkpoints/ac_weights_{it:06d}.pt")
-                        logger.duplicate(f"checkpoints/ac_weights_{it:06d}.pt", f"checkpoints/ac_weights_last.pt")
+                        logger.torch_save(self.alg.actor_critic.state_dict(), str(path / f"ac_weights_{it:06d}.pt"))
+                        logger.duplicate(str(path / f"ac_weights_{it:06d}.pt"), str(path / "ac_weights_last.pt"))
 
-                        path = './tmp/legged_data'
-                        os.makedirs(path, exist_ok=True)
+                        # ac_weight_path = f'{path}/ac_weights_{it}.pt'
+                        # torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
+                        # wandb.save(ac_weight_path)
 
-                        ac_weight_path = f'{path}/ac_weights_{it}.pt'
-                        torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
-                        wandb.save(ac_weight_path)
+                        # TODO not working on cluster
+                        # ac_weight_path = f'{path}/ac_weights_latest.pt'
+                        # torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
+                        # wandb.save(ac_weight_path, policy="live")
 
-                        ac_weight_path = f'{path}/ac_weights_latest.pt'
-                        torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
-                        wandb.save(ac_weight_path)
-
-                        adaptation_module_path = f'{path}/adaptation_module_{it}.jit'
+                        adaptation_module_path = str(path / f'adaptation_module_{it:06d}.jit')
                         adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
-                        traced_script_adaptation_module = torch.jit.script(adaptation_module)
-                        traced_script_adaptation_module.save(adaptation_module_path)
+                        traced_script_adaptation_module = torch.jit.script(adaptation_module)  #type: ignore
+                        traced_script_adaptation_module.save(adaptation_module_path)  # type: ignore
 
-                        adaptation_module_path = f'{path}/adaptation_module_latest.jit'
-                        traced_script_adaptation_module.save(adaptation_module_path)
+                        # adaptation_module_path = f'{path}/adaptation_module_latest.jit'
+                        # traced_script_adaptation_module.save(adaptation_module_path)
 
-                        body_path = f'{path}/body_{it}.jit'
+                        body_path = str(path / f'body_{it:06d}.jit')
                         body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
-                        traced_script_body_module = torch.jit.script(body_model)
-                        traced_script_body_module.save(body_path)
+                        traced_script_body_module = torch.jit.script(body_model)  # type: ignore
+                        traced_script_body_module.save(body_path)  # type: ignore
 
-                        body_path = f'{path}/body_latest.jit'
-                        traced_script_body_module.save(body_path)
+                        # body_path = f'{path}/body_latest.jit'
+                        # traced_script_body_module.save(body_path)
 
                         logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
                         logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
 
-                    ac_weights_path = f"{path}/ac_weights_{it}.pt"
-                    torch.save(self.alg.actor_critic.state_dict(), ac_weights_path)
-                    ac_weights_path = f"{path}/ac_weights_latest.pt"
-                    torch.save(self.alg.actor_critic.state_dict(), ac_weights_path)
+                    # ac_weights_path = f"{path}/ac_weights_{it}.pt"
+                    # torch.save(self.alg.actor_critic.state_dict(), ac_weights_path)
+                    # ac_weights_path = f"{path}/ac_weights_latest.pt"
+                    # torch.save(self.alg.actor_critic.state_dict(), ac_weights_path)
                     
-                    wandb.save(f"./tmp/legged_data/adaptation_module_{it}.jit")
-                    wandb.save(f"./tmp/legged_data/body_{it}.jit")
-                    wandb.save(f"./tmp/legged_data/ac_weights_{it}.pt")
-                    wandb.save(f"./tmp/legged_data/adaptation_module_latest.jit")
-                    wandb.save(f"./tmp/legged_data/body_latest.jit")
-                    wandb.save(f"./tmp/legged_data/ac_weights_latest.pt")
-                    
+                    # wandb.save(f"./tmp/legged_data/adaptation_module_{it}.jit")
+                    # wandb.save(f"./tmp/legged_data/body_{it}.jit")
+                    # wandb.save(f"./tmp/legged_data/ac_weights_{it}.pt")
+                    # wandb.save(f"./tmp/legged_data/adaptation_module_latest.jit")
+                    # wandb.save(f"./tmp/legged_data/body_latest.jit")
+                    # wandb.save(f"./tmp/legged_data/ac_weights_latest.pt")
 
             self.current_learning_iteration += num_learning_iterations
-
-        path = './tmp/legged_data'
-
-        os.makedirs(path, exist_ok=True)
 
     def log_video(self, it):
         if it - self.last_recording_it >= RunnerArgs.save_video_interval:
@@ -303,7 +301,7 @@ class Runner:
             video_array = np.concatenate([np.expand_dims(frame, axis=0) for frame in frames ], axis=0).swapaxes(1, 3).swapaxes(2, 3)
             print(video_array.shape)
             logger.save_video(frames, f"videos/{it:05d}.mp4", fps=1 / self.env.dt)
-            wandb.log({"video": wandb.Video(video_array, fps=1 / self.env.dt)}, step=it)
+            wandb.log({"video": wandb.Video(video_array, fps=1 / self.env.dt, format='mp4')}, step=it)
 
     def get_inference_policy(self, device=None):
         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)

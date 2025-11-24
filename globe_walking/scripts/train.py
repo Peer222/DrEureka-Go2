@@ -2,8 +2,8 @@ import sys
 import os 
 import argparse
 
-def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None):
 
+def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None):
     import isaacgym
     assert isaacgym
     import torch
@@ -72,17 +72,17 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
 
     # sensory observation
     Cfg.commands.num_commands = 0
-    Cfg.env.episode_length_s = 40.
+    Cfg.env.episode_length_s = 40
     Cfg.env.num_observations = 56
 
     # terrain configuration
-    Cfg.terrain.border_size = 0.0
+    Cfg.terrain.border_size = 0
     Cfg.terrain.mesh_type = "boxes_tm"
     Cfg.terrain.num_cols = 20
     Cfg.terrain.num_rows = 20
     Cfg.terrain.terrain_length = 5.0
     Cfg.terrain.terrain_width = 5.0
-    Cfg.terrain.num_border_boxes = 5.0
+    Cfg.terrain.num_border_boxes = 5
     Cfg.terrain.teleport_thresh = 0.3
     Cfg.terrain.teleport_robots = False
     Cfg.terrain.center_robots = False
@@ -109,8 +109,10 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
 
     import wandb
     if (Cfg.multi_gpu and int(os.getenv("LOCAL_RANK", "0")) == 0) or not Cfg.multi_gpu:
-        time_now = logger.utcnow(f'globe_walking/%Y-%m-%d/{Path(__file__).stem}/%H%M%S.%f')
-        logger.configure(time_now, root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
+        run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
+        time_now = logger.utcnow(f'globe_walking/{wandb_group}/%Y-%m-%d_%H:%M:%S')
+        logger.configure(time_now, root=str(run_dir))
+        run_dir = run_dir / str(time_now)
         logger.log_text("""
                     charts: 
                     - yKey: train/episode/rew_total/mean
@@ -141,11 +143,12 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
         logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                         Cfg=vars(Cfg))
 
-        run_name = logger.prefix.split("/")[-1]
+        run_name = run_dir.stem
         name_prefix = wandb_group + "/" if wandb_group is not None else ""
         wandb.init(
-            project="globe_walking",
-            entity="upenn-pal",
+            dir=run_dir,
+            project=wandb_project,
+            entity=wandb_entity,
             name=f"{name_prefix}{run_name}",
             group=wandb_group,
             config={
@@ -153,8 +156,8 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
                 "PPO_Args": vars(PPO_Args),
                 "RunnerArgs": vars(RunnerArgs),
                 "Cfg": vars(Cfg),
+                "HEADLESS": headless,
             },
-            mode=("disabled" if no_wandb else "online")
         )
 
 
@@ -163,7 +166,7 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
         device = f'cuda:{rank}'
     else:
         device = 'cuda:0'
-    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     env = HistoryWrapper(env)
     runner = Runner(env, device=device, multi_gpu=Cfg.multi_gpu)
@@ -177,15 +180,17 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=50000)
+    parser.add_argument("--headless", action="store_true")
     parser.add_argument("--no-wandb", action="store_true")
-    parser.add_argument("--wandb-group", type=str)
+    parser.add_argument("--wandb-entity", type=str, default="peer222-luh")
+    parser.add_argument("--wandb-project", type=str, default="master-thesis")
+    parser.add_argument("--wandb-group", type=str, default="globe-walking")
 
     parser.add_argument("--dr-config", type=str, required=True, choices=["eureka", "off"])
-    parser.add_argument("--reward-config", type=str, required=True, choices=["eureka"])
+    parser.add_argument("--reward-config", type=str, required=True, choices=["eureka", "best"])
     args = parser.parse_args()
 
-    assert args.reward_config == "eureka", "Only Eureka reward is available"
+    assert args.reward_config == "eureka", "Only Eureka reward is available" # TODO
 
     resume_path = None
-    train_go1(iterations=args.iterations, dr_config=args.dr_config, headless=True, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group)
-
+    train_go1(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity)
