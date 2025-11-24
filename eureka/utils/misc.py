@@ -5,7 +5,8 @@ import json
 import logging
 import time
 
-from utils.extract_task_code import file_to_string
+from utils.extract_task_code import file_to_string  # type: ignore
+
 
 def set_freest_gpu():
     freest_gpu = get_freest_gpu()

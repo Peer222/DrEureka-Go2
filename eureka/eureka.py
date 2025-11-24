@@ -9,15 +9,18 @@ import re
 import subprocess
 from pathlib import Path
 import shutil
-import time 
+import time
+from ml_logger import logger
 
 # relative imports for editor
-from utils.misc import *
-from utils.extract_task_code import *
+from utils.misc import *  # type: ignore
+from utils.extract_task_code import *  # type: ignore
 
 
 EUREKA_ROOT_DIR = os.getcwd()
 ROOT_DIR = f"{EUREKA_ROOT_DIR}/.."
+
+TIMESTAMP = time.strftime("%Y-%m-%d_%H:%M")
 
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
@@ -39,19 +42,19 @@ def main(cfg):
     task_rew_file = f'{ROOT_DIR}/{env_name}/{cfg.env.reward_template_file}'
     task_obs_file = f'{EUREKA_ROOT_DIR}/envs/{env_name}.py'
     shutil.copy(task_obs_file, f"env_init_obs.py")
-    task_rew_code_string = file_to_string(task_rew_file)
-    task_obs_code_string = file_to_string(task_obs_file)
+    task_rew_code_string = file_to_string(task_rew_file)  # type: ignore
+    task_obs_code_string = file_to_string(task_obs_file)  # type: ignore
     output_file = f"{ROOT_DIR}/{env_name}/{cfg.env.reward_output_file}"
 
     # Loading all text prompts
     prompt_dir = f'{EUREKA_ROOT_DIR}/prompts'
-    initial_system = file_to_string(f'{prompt_dir}/initial_system.txt')
-    code_output_tip = file_to_string(f'{prompt_dir}/code_output_tip.txt')
-    code_feedback = file_to_string(f'{prompt_dir}/code_feedback.txt')
-    initial_user = file_to_string(f'{prompt_dir}/initial_user.txt')
-    reward_signature = file_to_string(f'{prompt_dir}/reward_signatures/{env_name}.txt')
-    policy_feedback = file_to_string(f'{prompt_dir}/policy_feedback.txt')
-    execution_error_feedback = file_to_string(f'{prompt_dir}/execution_error_feedback.txt')
+    initial_system = file_to_string(f'{prompt_dir}/initial_system.txt')  # type: ignore
+    code_output_tip = file_to_string(f'{prompt_dir}/code_output_tip.txt')  # type: ignore
+    code_feedback = file_to_string(f'{prompt_dir}/code_feedback.txt')  # type: ignore
+    initial_user = file_to_string(f'{prompt_dir}/initial_user.txt')  # type: ignore
+    reward_signature = file_to_string(f'{prompt_dir}/reward_signatures/{env_name}.txt')  # type: ignore
+    policy_feedback = file_to_string(f'{prompt_dir}/policy_feedback.txt')  # type: ignore
+    execution_error_feedback = file_to_string(f'{prompt_dir}/execution_error_feedback.txt')  # type: ignore
 
     initial_system = initial_system.format(task_reward_signature_string=reward_signature) + code_output_tip
     initial_user = initial_user.format(task_obs_code_string=task_obs_code_string, task_description=task_description)
@@ -64,8 +67,10 @@ def main(cfg):
     best_code_paths = []
     max_success_overall = DUMMY_FAILURE
     max_success_reward_correlation_overall = DUMMY_FAILURE
-    max_reward_code_path = None 
-    
+    max_reward_code_path = None
+
+    logger.log_params(Cfg=vars(cfg))
+
     # Eureka generation loop
     for iter in range(cfg.iteration):
         # Get Eureka response
@@ -163,15 +168,16 @@ def main(cfg):
             # Execute the python file with flags
             rl_filepath = f"env_iter{iter}_response{response_id}.txt"
             with open(rl_filepath, 'w') as f:
-                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --dr-config off --reward-config eureka"
+                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group {env_name}-eureka-{TIMESTAMP}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
+                logging.info(command)
                 process = subprocess.Popen(command, stdout=f, stderr=f)
             #block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,
             #                     log_status=True, iter_num=iter, response_id=response_id)
             rl_runs.append(process)
-            block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)
+            block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
         # Gather RL training results and construct reward reflection
         code_feedbacks = []
@@ -179,7 +185,7 @@ def main(cfg):
         successes = []
         reward_correlations = []
         code_paths = []
-        
+
         exec_success = False 
         for response_id, (code_run, rl_run) in enumerate(zip(code_runs, rl_runs)):
             rl_run.communicate()
@@ -197,19 +203,19 @@ def main(cfg):
                 continue
 
             content = ''
-            traceback_msg = filter_traceback(stdout_str)
+            traceback_msg = filter_traceback(stdout_str)  # type: ignore
 
             if traceback_msg == '':
                 # If RL execution has no error, provide policy statistics feedback
                 exec_success = True
-                run_log = construct_run_log(stdout_str)
-                
+                run_log = construct_run_log(stdout_str)  # type: ignore
+
                 train_iterations = np.array(run_log['iterations/']).shape[0]
                 epoch_freq = max(int(train_iterations // 10), 1)
-                
+
                 epochs_per_log = 10
                 content += policy_feedback.format(epoch_freq=epochs_per_log*epoch_freq)
-                
+
                 # Compute Correlation between Human-Engineered and GPT Rewards
                 if "gt_reward" in run_log and "gpt_reward" in run_log:
                     gt_reward = np.array(run_log["gt_reward"])
@@ -259,7 +265,7 @@ def main(cfg):
         # Select the best code sample based on the success rate
         best_sample_idx = np.argmax(np.array(successes))
         best_content = contents[best_sample_idx]
-            
+
         max_success = successes[best_sample_idx]
         max_success_reward_correlation = reward_correlations[best_sample_idx]
         execute_rate = np.sum(np.array(successes) >= 0.) / cfg.sample
@@ -279,7 +285,7 @@ def main(cfg):
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
         logging.info(f"Iteration {iter}: GPT Output Content:\n" +  responses[best_sample_idx]["message"]["content"] + "\n")
         logging.info(f"Iteration {iter}: User Content:\n" + best_content + "\n")
-            
+
         # Plot the success rate
         fig, axs = plt.subplots(2, figsize=(6, 6))
         fig.suptitle(f'{task}')
@@ -309,17 +315,17 @@ def main(cfg):
         # Save dictionary as JSON file
         with open('messages.json', 'w') as file:
             json.dump(messages, file, indent=4)
-    
+
     if max_reward_code_path is None: 
         logging.info("All iterations of code generation failed, aborting...")
         logging.info("Please double check the output env_iter*_response*.txt files for repeating errors!")
         exit()
     logging.info(f"Task: {task}, Max Training Success {max_success_overall}, Correlation {max_success_reward_correlation_overall}, Best Reward Code Path: {max_reward_code_path}")
 
-    best_reward = file_to_string(max_reward_code_path)
+    best_reward = file_to_string(max_reward_code_path)  # type: ignore
     with open(output_file, 'w') as file:
         file.writelines(best_reward + '\n')
-    
+
     # Get run directory of best-performing policy
     with open(max_reward_code_path.replace(".py", ".txt"), "r") as file:
         lines = file.readlines()

@@ -21,6 +21,6 @@ num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat fil
 processes_per_gpu: 2       # 3 execution failed in dry run and code stuck (original code probably had enough gpus to run all samples per iteration in parallel)
 
 # Weights and Biases
-use_wandb: False            # whether to use wandb for logging
-wandb_username: ""          # wandb username if logging with wandb
-wandb_project: ""           # wandb project if logging with wandb
+use_wandb: True            # whether to use wandb for logging
+wandb_username: "peer222-luh"  # wandb username if logging with wandb
+wandb_project: "peer222-luh/master-thesis"  # wandb project if logging with wandb
