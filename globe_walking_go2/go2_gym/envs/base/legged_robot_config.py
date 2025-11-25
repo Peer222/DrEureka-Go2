@@ -119,7 +119,6 @@ class Cfg(PrefixProto, cli=False):
             "RestitutionSensor": {},
             "FrictionSensor": {},
         }
-        
 
     class terrain_mini(PrefixProto, cli=False):
         mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh
@@ -426,58 +425,6 @@ class Cfg(PrefixProto, cli=False):
         constrict_ranges = [[]]
         constrict_after = 0
 
-    class reward_scales(ParamsProto, cli=False):
-        termination = -0.0
-        tracking_lin_vel = 1.0
-        tracking_ang_vel = 0.5
-        lin_vel_z = -2.0
-        ang_vel_xy = -0.05
-        orientation = -0.
-        torques = -0.00001
-        dof_vel = -0.
-        dof_acc = -2.5e-7
-        base_height = -0.
-        feet_air_time = 1.0
-        collision = -1.
-        feet_stumble = -0.0
-        action_rate = -0.01
-        stand_still = -0.
-        tracking_lin_vel_lat = 0.
-        tracking_lin_vel_long = 0.
-        tracking_contacts = 0.
-        tracking_contacts_shaped = 0.
-        tracking_contacts_shaped_force = 0.
-        tracking_contacts_shaped_vel = 0.
-        jump = 0.0
-        energy = 0.0
-        energy_expenditure = 0.0
-        survival = 0.0
-        dof_pos_limits = 0.0
-        dof_vel_limits = 0.0
-        torque_limits = 0.0
-        feet_contact_forces = 0.
-        feet_slip = 0.
-        feet_accel = 0.
-        dof_pos = 0.
-        action_smoothness_1 = 0.
-        action_smoothness_2 = 0.
-        base_motion = 0.
-        feet_impact_vel = 0.0
-        raibert_heuristic = 0.0
-        dribbling_robot_ball_vel = 0.0
-        dribbling_robot_ball_pos = 0.0
-        dribbling_ball_vel = 0.0
-        dribbling_robot_ball_yaw = 0.0
-        dribbling_ball_vel_norm = 0.0
-        dribbling_ball_vel_angle = 0.0
-        gripper_handle_pos = 0.0
-        gripper_handle_height = 0.0
-        turn_handle = 0.0
-        open_door = 0.0
-        robot_door_pos = 0.0
-        robot_door_ori = 0.0
-        estimation_bonus = 0.0
-
     class normalization(PrefixProto, cli=False):
         clip_observations = 100.
         clip_actions = 10.0
@@ -613,12 +560,12 @@ def set_seed(seed, torch_deterministic=False, rank=0):
     if torch_deterministic:
         # refer to https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
         os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False  # type: ignore
+        torch.backends.cudnn.deterministic = True  # type: ignore
         torch.use_deterministic_algorithms(True)
     else:
-        torch.backends.cudnn.benchmark = True
-        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True  # type: ignore
+        torch.backends.cudnn.deterministic = False  # type: ignore
 
     return seed
 

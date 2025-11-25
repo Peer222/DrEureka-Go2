@@ -68,7 +68,7 @@ class TMBoxTerrain(Terrain):
 
         lengthwise_density = int(self.env.cfg.terrain.terrain_length / self.env.cfg.terrain.horizontal_scale)
         widthwise_density = int(self.env.cfg.terrain.terrain_width / self.env.cfg.terrain.horizontal_scale)
-        self.height_samples = torch.tensor(self.terrain_cell_heights).view(self.env.cfg.terrain.num_rows,
+        self.height_samples = self.terrain_cell_heights.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                            self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(
             self.env.device) / self.env.cfg.terrain.vertical_scale
@@ -86,7 +86,7 @@ class TMBoxTerrain(Terrain):
                 horizontal_scale = self.env.cfg.terrain.horizontal_scale  # / self.env.cfg.terrain.num_rows
                 vertical_scale = self.env.cfg.terrain.vertical_scale  # / self.env.cfg.terrain.num_cols
 
-                tm_params = gymapi.TriangleMeshParams()
+                tm_params = gymapi.TriangleMeshParams()  # type: ignore
                 vertices, triangles = terrain_utils.convert_heightfield_to_trimesh(heightfield_segment_raw,
                                                                                    horizontal_scale,
                                                                                    vertical_scale,
@@ -157,6 +157,8 @@ class TMBoxTerrain(Terrain):
                             step_run = (self.env.cfg.terrain.max_step_run - self.env.cfg.terrain.min_step_run) * torch.rand(1) + self.env.cfg.terrain.min_step_run
                             step_height = self.env.cfg.terrain.max_step_height * difficulty
                         num_steps = 8
+                        height = 0
+                        k = 0
                         for k in range(num_steps):
                             step_px =  int(step_run * k / self.env.cfg.terrain.horizontal_scale)
                             if self.env.terrain.cfg.length_per_env_pixels - 1.0 / self.env.cfg.terrain.horizontal_scale <= step_px * 2:
@@ -191,6 +193,8 @@ class TMBoxTerrain(Terrain):
                             step_run = (self.env.cfg.terrain.max_step_run - self.env.cfg.terrain.min_step_run) * torch.rand(1) + self.env.cfg.terrain.min_step_run
                             step_height = -self.env.cfg.terrain.max_step_height * difficulty
                         num_steps = 8
+                        height = 0
+                        k = 0
                         for k in range(num_steps):
                             step_px = int(step_run * k / self.env.cfg.terrain.horizontal_scale)
                             if self.env.terrain.cfg.length_per_env_pixels - 1.0 / self.env.cfg.terrain.horizontal_scale  <= step_px * 2:
@@ -258,10 +262,10 @@ class TMBoxTerrain(Terrain):
                 self.height_samples[start_px:end_px, start_py:end_py] = self.height_samples[start_px:end_px, start_py:end_py] + torch.tensor(perlin(x, y, seed=perlin_seed), device=self.env.device) * float(roughness) / self.env.cfg.terrain.vertical_scale
 
                 
-        self.friction_samples = torch.tensor(self.terrain_cell_frictions).view(self.env.cfg.terrain.num_rows,
+        self.friction_samples = self.terrain_cell_frictions.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                                self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(self.env.device)
-        self.roughness_samples = torch.tensor(self.terrain_cell_roughnesses).view(self.env.cfg.terrain.num_rows,
+        self.roughness_samples = self.terrain_cell_roughnesses.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                                self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(self.env.device)
 
@@ -307,7 +311,7 @@ class TMBoxTerrain(Terrain):
                 # x, y = np.meshgrid(lin_x, lin_y)
                 # heightfield_segment_raw = heightfield_segment_raw + perlin(x, y, seed=2) * float(roughness) / self.env.cfg.terrain.vertical_scale
 
-                tm_params = gymapi.TriangleMeshParams()
+                tm_params = gymapi.TriangleMeshParams()  # type: ignore
                 vertices, triangles = terrain_utils.convert_heightfield_to_trimesh(heightfield_segment_raw,
                                                                                    horizontal_scale,
                                                                                    vertical_scale,
@@ -334,14 +338,12 @@ class TMBoxTerrain(Terrain):
                 
         lengthwise_density = int(self.env.cfg.terrain.terrain_length / self.env.cfg.terrain.horizontal_scale)
         widthwise_density = int(self.env.cfg.terrain.terrain_width / self.env.cfg.terrain.horizontal_scale)
-        self.friction_samples = torch.tensor(self.terrain_cell_frictions).view(self.env.cfg.terrain.num_rows,
+        self.friction_samples = self.terrain_cell_frictions.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                                self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(self.env.device)
-        self.roughness_samples = torch.tensor(self.terrain_cell_roughnesses).view(self.env.cfg.terrain.num_rows,
+        self.roughness_samples = self.terrain_cell_roughnesses.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                                   self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(self.env.device)
-        self.restitution_samples = torch.tensor(self.terrain_cell_restitutions).view(self.env.cfg.terrain.num_rows,
+        self.restitution_samples = self.terrain_cell_restitutions.clone().detach().view(self.env.cfg.terrain.num_rows,
                                                                                      self.env.cfg.terrain.num_cols).repeat_interleave(
             lengthwise_density, dim=0).repeat_interleave(widthwise_density, dim=1).to(self.env.device)
-
-    

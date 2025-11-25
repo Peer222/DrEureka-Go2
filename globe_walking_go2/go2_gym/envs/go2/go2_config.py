@@ -5,7 +5,8 @@ from params_proto import Meta
 from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
-def config_go2(Cnfg: Union[Cfg, Meta]):
+def config_go2(Cnfg: Cfg):
+    Cnfg.robot.name = "go2"  # from train script
     _ = Cnfg.init_state
 
     _.pos = [0.0, 0.0, 0.34]  # x,y,z [m]
@@ -27,7 +28,7 @@ def config_go2(Cnfg: Union[Cfg, Meta]):
     }
 
     _ = Cnfg.control
-    _.control_type = 'P' # P  # TODO go1 uses acutator net here!
+    _.control_type = "actuator_net"  #'P'  # TODO go1 uses acutator net here!
     _.stiffness = {'joint': 25.}  # [N*m/rad]
     _.damping = {'joint': 0.6}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle
@@ -49,14 +50,7 @@ def config_go2(Cnfg: Union[Cfg, Meta]):
 
     _ = Cnfg.rewards
     _.soft_dof_pos_limit = 0.9
-    # _.base_height_target = 0.34
-
-    # _ = Cnfg.reward_scales
-    # _.torques = -0.0001
-    # _.action_rate = -0.01
-    # _.dof_pos_limits = -10.0
-    # _.orientation = -5.
-    # _.base_height = -30.
+    _.use_terminal_body_height = True
 
     _ = Cnfg.terrain
     _.mesh_type = 'trimesh'
@@ -69,9 +63,11 @@ def config_go2(Cnfg: Union[Cfg, Meta]):
     _.curriculum = False
 
     _ = Cnfg.env
-    _.num_observations = 42
-    _.observe_vel = False
-    _.num_envs = 4096
+    _.num_observations = 56
+    _.num_observation_history = 15 # from train script
+    # _.observe_vel = False
+    # _.num_envs = 4000
+    _.episode_length_s = 40
 
     _ = Cnfg.commands
     _.lin_vel_x = [-1.0, 1.0]
@@ -79,30 +75,33 @@ def config_go2(Cnfg: Union[Cfg, Meta]):
 
     _ = Cnfg.commands
     _.heading_command = False
-    _.resampling_time = 10.0
-    _.command_curriculum = True
     _.num_lin_vel_bins = 30
     _.num_ang_vel_bins = 30
     _.lin_vel_x = [-0.6, 0.6]
     _.lin_vel_y = [-0.6, 0.6]
-    _.ang_vel_yaw = [-1, 1]
+    ### from train script
+    _.exclusive_phase_offset = False
+    _.balance_gait_distribution = False
+    _.gaitwise_curricula = False
+    ###
 
-    _ = Cnfg.domain_rand
-    # _.randomize_base_mass = True
-    # _.added_mass_range = [-1, 3]
-    # _.push_robots = False
-    # _.max_push_vel_xy = 0.5
-    # _.randomize_friction = True
-    # _.friction_range = [0.05, 4.5]
-    # _.randomize_restitution = True
-    # _.restitution_range = [0.0, 1.0]
-    # _.restitution = 0.5  # default terrain restitution
-    # _.randomize_com_displacement = True
-    # _.com_displacement_range = [-0.1, 0.1]
-    # _.randomize_motor_strength = True
-    # _.motor_strength_range = [0.9, 1.1]
-    # _.randomize_Kp_factor = False
-    # _.Kp_factor_range = [0.8, 1.3]
-    # _.randomize_Kd_factor = False
-    # _.Kd_factor_range = [0.5, 1.5]
-    # _.rand_interval_s = 6
+    # terrain configuration
+    Cnfg.terrain.border_size = 0
+    Cnfg.terrain.mesh_type = "boxes_tm"
+    Cnfg.terrain.num_cols = 20
+    Cnfg.terrain.num_rows = 20
+    Cnfg.terrain.terrain_length = 5.0
+    Cnfg.terrain.terrain_width = 5.0
+    Cnfg.terrain.num_border_boxes = 5
+    Cnfg.terrain.teleport_thresh = 0.3
+    Cnfg.terrain.teleport_robots = False
+    Cnfg.terrain.center_robots = False
+    Cnfg.terrain.center_span = 3
+    Cnfg.terrain.horizontal_scale = 0.05
+    Cnfg.terrain.terrain_proportions = [1.0, 0.0, 0.0, 0.0, 0.0]
+    Cnfg.terrain.curriculum = False
+    Cnfg.terrain.difficulty_scale = 1.0
+    Cnfg.terrain.max_step_height = 0.26
+    Cnfg.terrain.min_step_run = 0.25
+    Cnfg.terrain.max_step_run = 0.4
+    Cnfg.terrain.max_init_terrain_level = 1

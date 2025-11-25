@@ -1,23 +1,34 @@
 import isaacgym
-
 assert isaacgym
+
+import argparse
+import sys
 import torch
 import numpy as np
-
 import glob
 import pickle as pkl
+import os
+import yaml
+import shutil
+import wandb
 
-from go2_gym.envs import *
+from go2_gym.envs import *  # type: ignore
 from go2_gym.envs.base.legged_robot_config import Cfg
 from go2_gym.envs.go2.go2_config import config_go2
 from go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
 
 from tqdm import tqdm
 
-def load_policy(logdir):
-    body = torch.jit.load(logdir + '/checkpoints/body_latest.jit')
-    import os
-    adaptation_module = torch.jit.load(logdir + '/checkpoints/adaptation_module_latest.jit')
+def load_policy(label):
+    body = torch.jit.load(label + '/body_latest.jit', map_location="cpu")  # type: ignore
+    adaptation_module = torch.jit.load(label + '/adaptation_module_latest.jit', map_location='cpu')  # type: ignore
+
+    # Alternative loading method using wandb
+    if False:
+        body_file = wandb.restore('tmp/legged_data/body_68000.jit', run_path=label)
+        body = torch.jit.load(body_file.name)
+        adaptation_module_file = wandb.restore('tmp/legged_data/adaptation_module_68000.jit', run_path=label)
+        adaptation_module = torch.jit.load(adaptation_module_file.name)
 
     def policy(obs, info={}):
         i = 0
@@ -29,150 +40,252 @@ def load_policy(logdir):
     return policy
 
 
-def load_env(label, headless=False):
-    dirs = glob.glob(f"../runs/{label}/*")
-    logdir = sorted(dirs)[0]
+def load_env(label, headless=False, dr_config="off", save_video=True):
+    # Will be overwritten by the loaded config from parameters.pkl
+    Cfg.env = Cfg.env_mini  # type: ignore
+    Cfg.sensors = Cfg.sensors_mini
+    Cfg.terrain = Cfg.terrain_mini  # type: ignore
+    Cfg.domain_rand = Cfg.domain_rand_off  # type: ignore
+    Cfg.sim.physx = Cfg.sim.physx_mini  # type: ignore
 
-    with open(logdir + "/parameters.pkl", 'rb') as file:
-        pkl_cfg = pkl.load(file)
-        print(pkl_cfg.keys())
-        cfg = pkl_cfg["Cfg"]
-        print(cfg.keys())
+    config_go2(Cfg)
+    if os.path.exists(label + "/config.yaml"):
+        with open(label + "/config.yaml", 'rb') as file: 
+            cfg = yaml.safe_load(file)
+            cfg = cfg["Cfg"]
+    elif os.path.exists(label + "/../parameters.pkl"):
+        with open(label + "/../parameters.pkl", 'rb') as file:
+            pkl_cfg = pkl.load(file)
+            cfg = pkl_cfg["Cfg"]
+    else:
+        # Load from wandb, currently unused and expected to fail
+        cfg_file = wandb.restore('config.yaml', run_path=label)
+        with open(cfg_file.name, 'rb') as file:  # type: ignore
+            cfg = yaml.safe_load(file)
+            cfg = cfg["Cfg"]["value"]
+        
+    def set_cfg_recursive(cfg, load):
+        for key, value in load.items():
+            if not hasattr(cfg, key):
+                continue
+            if dr_config != "load" and key in ["env_mini", "env_full", "sensors_mini", "sensors_full", "terrain_mini", "terrain_full", "domain_rand_mini", "domain_rand_full", "domain_rand_eureka", "physx_mini", "physx_full"]:
+                # Don't overwrite presets from Cfg
+                continue
+            if key in ["pos", "ball_init_pos"]:
+                # Backwards compatibility
+                continue
+            if isinstance(value, dict):
+                set_cfg_recursive(getattr(cfg, key), value)
+            else:
+                # if value != getattr(cfg, key):
+                #     print(f"Overwriting {key} from {getattr(cfg, key)} to {value}")
+                setattr(cfg, key, value)
+    set_cfg_recursive(Cfg, cfg)
+    Cfg.multi_gpu = False
 
-        for key, value in cfg.items():
-            if hasattr(Cfg, key):
-                for key2, value2 in cfg[key].items():
-                    setattr(getattr(Cfg, key), key2, value2)
+    if dr_config == "eureka":
+        Cfg.domain_rand = Cfg.domain_rand_eureka  # type: ignore
+    elif dr_config == "off":
+        Cfg.domain_rand = Cfg.domain_rand_off  # type: ignore
+    elif dr_config == "load":
+        pass  # Load from the loaded config
+    else:
+        raise ValueError("Invalid domain randomization configuration")
+    Cfg.domain_rand.randomize = False
 
-    # turn off DR for evaluation script
-    Cfg.domain_rand.push_robots = False
-    Cfg.domain_rand.randomize_friction = False
-    Cfg.domain_rand.randomize_gravity = False
-    Cfg.domain_rand.randomize_restitution = False
-    Cfg.domain_rand.randomize_motor_offset = False
-    Cfg.domain_rand.randomize_motor_strength = False
-    Cfg.domain_rand.randomize_friction_indep = False
-    Cfg.domain_rand.randomize_ground_friction = False
-    Cfg.domain_rand.randomize_base_mass = False
-    Cfg.domain_rand.randomize_Kd_factor = False
-    Cfg.domain_rand.randomize_Kp_factor = False
-    Cfg.domain_rand.randomize_joint_friction = False
-    Cfg.domain_rand.randomize_com_displacement = False
+    Cfg.env.record_video = save_video
 
     Cfg.env.num_recording_envs = 1
-    Cfg.env.num_envs = 5
+    Cfg.env.num_envs = 1
     Cfg.terrain.num_rows = 5
     Cfg.terrain.num_cols = 5
     Cfg.terrain.border_size = 0
+    Cfg.terrain.num_border_boxes = 0
     Cfg.terrain.center_robots = True
     Cfg.terrain.center_span = 1
     Cfg.terrain.teleport_robots = True
 
-    Cfg.domain_rand.lag_timesteps = 6
-    Cfg.domain_rand.randomize_lag_timesteps = True
-    # default control_typw is "actuator_net", you can also switch it to "P" to enable joint PD control
-    Cfg.control.control_type = "actuator_net" 
-    Cfg.asset.flip_visual_attachments = True
+    Cfg.control.control_type = "actuator_net"
 
+    # The following are a series of tests to verify that DR is working as expected
+    if False:
+        # For visualizing multiple envs
+        Cfg.env.num_envs = 3
+        Cfg.terrain.center_robots = False
+    if False:
+        # Put quadruped on ground, get rid of ball
+        Cfg.domain_rand.ball_radius_range = [0.0, 0.0]
+    if False:
+        # Put the ball somewhere fall away
+        Cfg.ball.init_pos_range = [100.0, 100.0, 0.2]
+    if False:
+        # Drop quadruped and ball (to test restitution)
+        Cfg.ball.ball_init_pos = [1.0, 1.0, 1.0]
+        Cfg.init_state.pos[-1] = 10.0
 
-    from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
+    # Extreme values for testing
+    if False:
+        print("> Friction Test: quadruped should slip off easily")
+        Cfg.domain_rand.robot_friction_range = [0.0, 0.0]
+        Cfg.domain_rand.ball_friction_range = [0.0, 0.0]
+    if False:
+        print("> Mass test: ball should be immovable")
+        Cfg.domain_rand.ball_mass_range = [1000.0, 1000.0]
+        Cfg.domain_rand.terrain_tile_roughness_range = [0.0, 0.0]     # Disable terrain so balls don't move due to gravity
+        Cfg.domain_rand.ball_push_vel_range = [0.0, 0.0]
+        Cfg.domain_rand.gravity_range = [0.0, 0.0]
+    if False:
+        print("> Radius test: balls should be big and vary in size, quadrupeds should spawn perfectly on top")
+        Cfg.domain_rand.ball_radius_range = [0.0, 2.0]
+    if False:
+        print("> Restitution test 1: UNSTABLE IN PUBLIC ISAACGYM")
+        # To make the effect clear, set Cfg.ball.ball_init_pos = [1.0, 1.0, 1.0] as well
+        Cfg.domain_rand.robot_restitution_range = [10.0, 10.0]
+        Cfg.domain_rand.ball_restitution_range = [1.0, 1.0]
+        Cfg.domain_rand.ball_compliance_range = [0.0, 0.0]
+        Cfg.domain_rand.ball_drag_range = [0.0, 0.0]
+        Cfg.domain_rand.ball_push_vel_range = [0.0, 0.0]
+        Cfg.domain_rand.gravity_range = [0.0, 0.0]
+        Cfg.domain_rand.terrain_tile_roughness_range = [0.0, 0.0]
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    if False:
+        print("> Restitution test 2: UNSTABLE IN PUBLIC ISAACGYM")
+        ball_restitution_range = [0.0, 0.0]
+        Cfg.domain_rand.terrain_ground_restitution_range = [0.0, 0.0]
+    if False: 
+        print("> Compliance test: NOT IMPLEMENTED IN PUBLIC ISAACGYM")
+        Cfg.domain_rand.ball_compliance_range = [10.0, 10.0]
+    if False:
+        print("> Drag test: ball should move less")
+        Cfg.domain_rand.ball_drag_range = [500.0, 500.0]
+    if False:
+        print("> Push test: quadruped and ball should get pushed around violently")
+        Cfg.domain_rand.push_robot_interval_s = 1
+        Cfg.domain_rand.robot_push_vel_range = [10.0, 10.0]
+        Cfg.domain_rand.push_ball_interval_s = 1
+        Cfg.domain_rand.ball_push_vel_range = [10.0, 10.0]
+    if False:
+        print("> Gravity test: quadrupeds and balls should shift around")
+        Cfg.domain_rand.gravity_range = [-3.0, 3.0]
+        Cfg.domain_rand.gravity_rand_interval_s = 1
+        Cfg.terrain.x_init_range = 0.0
+        Cfg.terrain.y_init_range = 0.0
+    if False:
+        print("> Payload test: quadruped leg should be more bent, unable to support itself")
+        Cfg.domain_rand.robot_payload_mass_range = [10.0, 10.0]
+    if False:
+        print("> CoM test: quadruped should tilt to one side")
+        Cfg.domain_rand.robot_com_displacement_range = [0.5, 0.5]
+        Cfg.terrain.x_init_range = 0.0
+        Cfg.terrain.y_init_range = 0.0
+    if False:
+        print("> Inertia test: the ball should be harder to rotate")
+        Cfg.domain_rand.ball_inertia_multiplier_range = [1000.0, 1000.0]
+    if False:
+        print("> Spring coefficient test: robot's feet should bounce off the ball")
+        Cfg.domain_rand.ball_spring_coefficient_range = [0.7, 0.7]
+
+    from globe_walking.go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
+
+    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)  # type: ignore
     env = HistoryWrapper(env)
 
-    # load policy
-    from ml_logger import logger
-    from go2_gym_learn.ppo_cse.actor_critic import ActorCritic
-
-    policy = load_policy(logdir)
-
+    policy = load_policy(label)
     return env, policy
 
 
-def play_go2(headless=True):
-    from ml_logger import logger
+def play_go2(iterations, headless=True, label=None, dr_config="off", verbose=False, save_video=False):
+    label = os.path.join(label or "", "checkpoints")
+    env, policy = load_env(label, headless=headless, dr_config=dr_config)
 
-    from pathlib import Path
-    from go2_gym import MINI_GYM_ROOT_DIR
-    import glob
-    import os
+    measured_x_vels = np.zeros(iterations)
+    measured_global_x_vels = np.zeros(iterations)
+    joint_positions = np.zeros((iterations, 12))
+    foot_contact_forces = np.zeros((iterations, 4))
+    torques = np.zeros((iterations, 12))
 
-    # label = "gait-conditioned-agility/pretrain-v0/train"
-    label = "gait-conditioned-agility/pretrain-go2/train"
-
-
-    env, policy = load_env(label, headless=headless)
-
-    num_eval_steps = 2500 #250
-    gaits = {"pronking": [0, 0, 0],
-             "trotting": [0.5, 0, 0],
-             "bounding": [0, 0.5, 0],
-             "pacing": [0, 0, 0.5]}
-
-    # x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.0
-    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.0
-    body_height_cmd = 0.0
-    step_frequency_cmd = 3.0 #3.0
-    # gait = torch.tensor(gaits["trotting"])
-    gait = torch.tensor(gaits["trotting"])
-    footswing_height_cmd = 0.08
-    pitch_cmd = 0.0
-    roll_cmd = 0.0
-    stance_width_cmd = 0.25
-
-    measured_x_vels = np.zeros(num_eval_steps)
-    target_x_vels = np.ones(num_eval_steps) * x_vel_cmd
-    joint_positions = np.zeros((num_eval_steps, 12))
-    ###### -----------ldt---------------
-    joint_torques = np.zeros((num_eval_steps, 12))
+    if save_video:
+        import imageio
+        mp4_writer = imageio.get_writer('globe_walking.mp4', fps=50)
 
     obs = env.reset()
-
-    for i in tqdm(range(num_eval_steps)):
+    ep_rew = 0
+    for i in tqdm(range(iterations)):
         with torch.no_grad():
             actions = policy(obs)
-        env.commands[:, 0] = x_vel_cmd
-        env.commands[:, 1] = y_vel_cmd
-        env.commands[:, 2] = yaw_vel_cmd
-        env.commands[:, 3] = body_height_cmd
-        env.commands[:, 4] = step_frequency_cmd
-        env.commands[:, 5:8] = gait
-        env.commands[:, 8] = 0.5
-        env.commands[:, 9] = footswing_height_cmd
-        env.commands[:, 10] = pitch_cmd
-        env.commands[:, 11] = roll_cmd
-        env.commands[:, 12] = stance_width_cmd
         obs, rew, done, info = env.step(actions)
-
+        if verbose:
+            print(f"z-position: {env.base_pos[0, 2]}")
         measured_x_vels[i] = env.base_lin_vel[0, 0]
+        measured_global_x_vels[i] = env.root_states[0, 7]
         joint_positions[i] = env.dof_pos[0, :].cpu()
-        ###### -----------ldt---------------
-        # joint_torques[i] = env.torques.detach().cpu().numpy()
+        foot_contact_forces[i] = torch.norm(env.contact_forces[0, env.feet_indices, :], dim=-1).cpu()
+        torques[i] = env.torques[0, :].detach().cpu()
+        ep_rew += rew
 
-    # plot target and measured forward velocity
-    from matplotlib import pyplot as plt
-    fig, axs = plt.subplots(3, 1, figsize=(12, 5))
-    axs[0].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), measured_x_vels, color='black', linestyle="-", label="Measured")
-    axs[0].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), target_x_vels, color='black', linestyle="--", label="Desired")
-    axs[0].legend()
-    axs[0].set_title("Forward Linear Velocity")
-    axs[0].set_xlabel("Time (s)")
-    axs[0].set_ylabel("Velocity (m/s)")
+        if save_video:
+            img = env.render(mode='rgb_array')
+            mp4_writer.append_data(img)  # type: ignore
 
-    axs[1].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), joint_positions, linestyle="-", label="Measured")
-    axs[1].set_title("Joint Positions")
-    axs[1].set_xlabel("Time (s)")
-    axs[1].set_ylabel("Joint Position (rad)")
+        out_of_limits = -(env.dof_pos - env.dof_pos_limits[:, 0]).clip(max=0.)
+        out_of_limits += (env.dof_pos - env.dof_pos_limits[:, 1]).clip(min=0.)
 
-    axs[2].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), joint_torques, linestyle="-", label="Measured")
-    axs[2].set_title("Joint Torques")
-    axs[2].set_xlabel("Time (s)")
-    axs[2].set_ylabel("Joint Torques (Nm)")
+    if save_video:
+        mp4_writer.close()  #type: ignore
+        video_dir_path = os.path.join(label, "../videos")
+        if not os.path.exists(video_dir_path):
+            os.makedirs(video_dir_path)
+        shutil.move("globe_walking.mp4", os.path.join(video_dir_path, "play.mp4"))
 
-    plt.tight_layout()
-    plt.show()
+        # plot target and measured forward velocity
+        np.savez(os.path.join(video_dir_path, "plot_data.npz"),
+                measured_x_vels=measured_x_vels, joint_positions=joint_positions, foot_contact_forces=foot_contact_forces, torques=torques)
+
+        from matplotlib import pyplot as plt
+        fig, axs = plt.subplots(5, 1, figsize=(12, 12))
+        axs[0].plot(np.linspace(0, iterations * env.dt, iterations), measured_x_vels, color='black', linestyle="-", label="Measured")
+        axs[0].legend()
+        axs[0].set_title("Forward Linear Velocity")
+        axs[0].set_xlabel("Time (s)")
+        axs[0].set_ylabel("Velocity (m/s)")
+
+        axs[1].plot(np.linspace(0, iterations * env.dt, iterations), measured_global_x_vels, color='black', linestyle="-", label="Measured")
+        axs[1].legend()
+        axs[1].set_title("Global Forward Linear Velocity")
+        axs[1].set_xlabel("Time (s)")
+        axs[1].set_ylabel("Velocity (m/s)")
+
+        axs[2].plot(np.linspace(0, iterations * env.dt, iterations), joint_positions, linestyle="-", label="Measured")
+        axs[2].set_title("Joint Positions")
+        axs[2].set_xlabel("Time (s)")
+        axs[2].set_ylabel("Joint Position (rad)")
+
+        axs[3].plot(np.linspace(0, iterations * env.dt, iterations), foot_contact_forces, linestyle="-", label="Measured")
+        axs[3].set_title("Foot Contact Forces")
+        axs[3].set_xlabel("Time (s)")
+        axs[3].set_ylabel("Force (N)")
+
+        axs[4].plot(np.linspace(0, iterations * env.dt, iterations), torques, linestyle="-", label="Measured")
+        axs[4].set_title("Torques")
+        axs[4].set_xlabel("Time (s)")
+        axs[4].set_ylabel("Torque (Nm)")
+        axs[4].legend(env.dof_names)
+
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(video_dir_path, "plot.png"))
+        if not headless:
+            plt.show()
 
 
 if __name__ == '__main__':
-    # to see the environment rendering, set headless=False
-    play_go2(headless=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--run', type=str, default=None)
+    parser.add_argument("--iterations", type=int, default=1000)
+    parser.add_argument('--headless', action='store_true')
+    parser.add_argument("--dr-config", type=str, required=True, choices=["mini", "full", "eureka", "off", "load"])
+    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--no-video", action="store_true")
+    args = parser.parse_args()
+
+    play_go2(iterations=args.iterations, headless=args.headless, label=args.run, dr_config=args.dr_config, verbose=args.verbose, save_video=not args.no_video)

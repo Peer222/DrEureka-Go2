@@ -11,7 +11,7 @@ class Go2(Robot):
         super().__init__(env)
 
     def initialize(self):
-        asset_file = '{MINI_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1_constrained.urdf'
+        asset_file = '{MINI_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf' # TODO original go1 uses go1_constrained (reduced effort limit for joint torques)
         asset_path = asset_file.format(MINI_GYM_ROOT_DIR=MINI_GYM_ROOT_DIR)
         asset_root = os.path.dirname(asset_path)
         asset_file = os.path.basename(asset_path)
