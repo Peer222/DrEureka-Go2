@@ -11,12 +11,10 @@ class Go2(Robot):
         super().__init__(env)
 
     def initialize(self):
-        asset_file = '{MINI_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf' # TODO original go1 uses go1_constrained (reduced effort limit for joint torques)
-        asset_path = asset_file.format(MINI_GYM_ROOT_DIR=MINI_GYM_ROOT_DIR)
+        asset_config = self.env.cfg.asset
+        asset_path = asset_config.file.format(MINI_GYM_ROOT_DIR=MINI_GYM_ROOT_DIR)
         asset_root = os.path.dirname(asset_path)
         asset_file = os.path.basename(asset_path)
-
-        asset_config = self.env.cfg.asset
 
         asset_options = gymapi.AssetOptions()
         asset_options.default_dof_drive_mode = asset_config.default_dof_drive_mode
@@ -32,14 +30,15 @@ class Go2(Robot):
         asset_options.armature = asset_config.armature
         asset_options.thickness = asset_config.thickness
         asset_options.disable_gravity = asset_config.disable_gravity
-        asset_options.vhacd_enabled = True
+
+        asset_options.vhacd_enabled = asset_config.use_vhacd
         asset_options.vhacd_params = gymapi.VhacdParams()
-        asset_options.vhacd_params.resolution = 500000
+        asset_options.vhacd_params.resolution = asset_config.vhacd_resolution
 
         asset = self.env.gym.load_asset(self.env.sim, asset_root, asset_file, asset_options)
 
         self.num_dof = self.env.gym.get_asset_dof_count(asset)
-        self.num_actuated_dof = 12
+        self.num_actuated_dof = asset_config.num_actuated_dof
         self.num_bodies = self.env.gym.get_asset_rigid_body_count(asset)
         dof_props_asset = self.env.gym.get_asset_dof_properties(asset)
         rigid_shape_props_asset = self.env.gym.get_asset_rigid_shape_properties(asset)

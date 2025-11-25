@@ -9,7 +9,7 @@ def config_go2(Cnfg: Cfg):
     Cnfg.robot.name = "go2"  # from train script
     _ = Cnfg.init_state
 
-    _.pos = [0.0, 0.0, 0.34]  # x,y,z [m]
+    _.pos = [0.0, 0.0, 0.42]  # x,y,z [m]
     _.default_joint_angles = {  # = target angles [rad] when action = 0.0
         'FL_hip_joint': 0.1,  # [rad]
         'RL_hip_joint': 0.1,  # [rad]
@@ -29,8 +29,8 @@ def config_go2(Cnfg: Cfg):
 
     _ = Cnfg.control
     _.control_type = "actuator_net"  #'P'  # TODO go1 uses acutator net here!
-    _.stiffness = {'joint': 25.}  # [N*m/rad]
-    _.damping = {'joint': 0.6}  # [N*m*s/rad]
+    _.stiffness = {'joint': 20.}  # [N*m/rad]
+    _.damping = {'joint': 0.5}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle
     _.action_scale = 0.25
     _.hip_scale_reduction = 0.5
@@ -47,6 +47,9 @@ def config_go2(Cnfg: Cfg):
     # ------------------ Go1: _.flip_visual_attachments = False
     _.flip_visual_attachments = True
     _.fix_base_link = False
+    _.num_actuated_dof = 12  # from go2.py
+    _.use_vhacd = True  # from go2.py
+    _.vhacd_resolution = 500000  # from go2.py
 
     _ = Cnfg.rewards
     _.soft_dof_pos_limit = 0.9
