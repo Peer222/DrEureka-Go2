@@ -13,7 +13,7 @@ module load Miniconda3
 
 conda activate vllm
 
-DATA_ROOT="/bigwork/nhwpduep/data/"
+DATA_ROOT="/project/NHWP25179/vllm/"  # "/bigwork/nhwpduep/data/"
 #MODEL="Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
 MODEL="openai/gpt-oss-20b"
 
