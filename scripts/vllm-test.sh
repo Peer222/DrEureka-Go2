@@ -4,7 +4,7 @@
 #SBATCH -J vllm-test
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:1
-#SBATCH -o results/vllm-test/%j.out
+#SBATCH -o slurm_logs/vllm-test/%j.out
 #SBATCH --partition=ai
 #SBATCH --time=00:10:00
 

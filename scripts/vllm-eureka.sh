@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:rtx3090:2
 
 #SBATCH -J vllm-eureka
-#SBATCH -o results/vllm-eureka/%j.out
+#SBATCH -o slurm_logs/vllm-eureka/%j.out
 #SBATCH --time=4-00:00:00
 
 if [ "$#" -ne 1 ]; then

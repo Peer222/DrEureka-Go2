@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:rtx3090:1
 
 #SBATCH -J globe-walking
-#SBATCH -o results/globe-walking/%j.out
+#SBATCH -o slurm_logs/globe-walking/%j.out
 #SBATCH --time=24:00:00
 
 if [ "$#" -ne 1 ]; then
