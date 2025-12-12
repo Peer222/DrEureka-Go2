@@ -57,7 +57,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     else:
         Cfg.commands.command_curriculum = False
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)  # type: ignore
 
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                       Cfg=vars(Cfg))
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     stem = Path(__file__).stem
     logger.configure(logger.utcnow(f'forward_locomotion/%Y-%m-%d/{stem}/%H%M%S.%f'),
-                     root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
+                     root=str(Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve()))
     logger.log_text("""
                 charts: 
                 - yKey: train/episode/rew_total/mean
@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=1000)
+    parser.add_argument("--headless", action="store_true")
     parser.add_argument("--no-wandb", action="store_true")
     parser.add_argument("--wandb-group", type=str)
     parser.add_argument("--wandb-prefix", type=str)
@@ -117,4 +118,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train_mc(iterations=args.iterations, command_config=args.command_config, reward_config=args.reward_config, dr_config=args.dr_config, eureka_target_velocity=args.eureka_target_velocity,
-              headless=True, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_prefix=args.wandb_prefix, seed=args.seed)
+              headless=args.headless, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_prefix=args.wandb_prefix, seed=args.seed)
