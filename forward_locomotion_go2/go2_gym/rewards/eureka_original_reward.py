@@ -3,7 +3,7 @@ import numpy as np
 from forward_locomotion.go1_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from isaacgym.torch_utils import *
 
-class EurekaReward():
+class EurekaOriginalReward():
     def __init__(self, env):
         self.env = env
 

@@ -3,8 +3,8 @@ import torch
 from params_proto import Meta
 from typing import Union
 
-from forward_locomotion.go1_gym.envs.base.legged_robot import LeggedRobot
-from forward_locomotion.go1_gym.envs.base.legged_robot_config import Cfg
+from forward_locomotion_go2.go2_gym.envs.base.legged_robot import LeggedRobot
+from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
 class VelocityTrackingEasyEnv(LeggedRobot):

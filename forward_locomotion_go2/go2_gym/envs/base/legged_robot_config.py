@@ -334,6 +334,18 @@ class Cfg(PrefixProto, cli=False):
             tracking_ang_vel = 0.5     # Used for command curriculum, if enabled
             pass
 
+    class rewards_eureka_original(PrefixProto, cli=False):
+        tracking_sigma = 0.25          # Can be used for command curriculum, if enabled
+        tracking_sigma_yaw = 0.25      # Can be used for command curriculum, if enabled
+        use_terminal_body_height = False
+        terminal_body_height = 0.20
+        reward_container_name = "EurekaOriginalReward"
+        target_velocity = 2.0
+        class scales(ParamsProto, cli=False, prefix="rewards.scales"):
+            tracking_lin_vel = 1.0     # Used for command curriculum, if enabled
+            tracking_ang_vel = 0.5     # Used for command curriculum, if enabled
+            pass
+
     class normalization(PrefixProto, cli=False):
         class obs_scales(PrefixProto, cli=False):
             lin_vel = 2.0

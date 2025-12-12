@@ -14,6 +14,10 @@ from forward_locomotion_go2.go2_gym.utils.math_utils import quat_apply_yaw, wrap
 from forward_locomotion_go2.go2_gym.utils.terrain import Terrain
 from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
+from forward_locomotion_go2.go2_gym.rewards.original_reward import OriginalReward
+from forward_locomotion_go2.go2_gym.rewards.eureka_reward import EurekaReward
+from forward_locomotion_go2.go2_gym.rewards.eureka_original_reward import EurekaOriginalReward
+
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless, eval_cfg=None,
@@ -1132,12 +1136,13 @@ class LeggedRobot(BaseTask):
         """
         # reward containers
         reward_container_name = self.cfg.rewards.reward_container_name
-        from forward_locomotion.go1_gym.rewards.original_reward import OriginalReward
-        from forward_locomotion.go1_gym.rewards.eureka_reward import EurekaReward
+
         if reward_container_name == "OriginalReward":
             self.reward_container = OriginalReward(self)
         elif reward_container_name == "EurekaReward":
             self.reward_container = EurekaReward(self)
+        elif reward_container_name == "EurekaOriginalReward":
+            self.reward_container = EurekaOriginalReward(self)
         else:
             raise NameError(f"Unknown reward container: {reward_container_name}")
 

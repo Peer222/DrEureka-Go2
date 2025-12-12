@@ -32,6 +32,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
         Cfg.commands = Cfg.commands_original  # Will be turned off below
     else:
         raise NotImplementedError
+
     if reward_config == "original":
         Cfg.rewards = Cfg.rewards_original
         assert eureka_target_velocity is None
@@ -39,8 +40,13 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
         Cfg.rewards = Cfg.rewards_eureka
         if eureka_target_velocity is not None:
             Cfg.rewards.target_velocity = eureka_target_velocity
+    elif reward_config == "eureka_original":
+        Cfg.rewards = Cfg.rewards_eureka_original
+        if eureka_target_velocity is not None:
+            Cfg.rewards.target_velocity = eureka_target_velocity
     else:
         raise NotImplementedError
+
     if dr_config == "original":
         Cfg.domain_rand = Cfg.domain_rand_original
     elif dr_config == "eureka":
@@ -58,6 +64,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     else:
         Cfg.commands.command_curriculum = False
 
+    device = 'cuda:0'
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
@@ -85,8 +92,6 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
         },
     )
 
-    device = 'cuda:0'
-
     env = HistoryWrapper(env)
     runner = Runner(env, device=device)
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100)
@@ -102,8 +107,8 @@ if __name__ == '__main__':
     parser.add_argument("--wandb-group", type=str, default="forward-locomotion-go2")
 
     parser.add_argument("--command-config", type=str, default="off", choices=["original", "constrained", "off"])
-    parser.add_argument("--reward-config", type=str, required=True, choices=["original", "eureka"])
-    parser.add_argument("--dr-config", type=str, required=True, choices=["original", "eureka", "off"])
+    parser.add_argument("--reward-config", type=str, required=True, choices=["original", "eureka", "eureka_original"])
+    parser.add_argument("--dr-config", type=str, required=True, choices=["original", "eureka", "eureka_original", "off"]) # TODO eureka original
 
     parser.add_argument("--eureka-target-velocity", type=float)
     parser.add_argument("--seed", type=int, default=0)
