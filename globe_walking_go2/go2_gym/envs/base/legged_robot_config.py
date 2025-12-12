@@ -412,7 +412,7 @@ class Cfg(PrefixProto, cli=False):
         lag_timesteps_range = [6, 6]
         lag_timesteps_rand_interval_s = 10
 
-    class rewards(PrefixProto, cli=False):
+    class rewards(PrefixProto, cli=False): # TODO add other reward configs
         reward_container_name = "EurekaReward"
         soft_dof_pos_limit = 1.  # Used to set DOF pos limits
         use_terminal_body_height = False

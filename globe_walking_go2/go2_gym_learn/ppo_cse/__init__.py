@@ -53,9 +53,9 @@ class RunnerArgs(PrefixProto, cli=False):
     max_iterations = 1500  # number of policy updates
 
     # logging
-    save_interval = 500  # check for potential saves every this many iterations
+    save_interval = 1000  # check for potential saves every this many iterations
     save_video_interval = 500
-    log_freq = 10
+    log_freq = 20
 
     # load and resume
     resume = False
@@ -67,7 +67,6 @@ class RunnerArgs(PrefixProto, cli=False):
 
 
 class Runner:
-
     def __init__(self, env, device='cpu', multi_gpu=False):
         from .ppo import PPO
 
@@ -118,6 +117,9 @@ class Runner:
     def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, curriculum_dump_freq=500, eval_expert=False):
         logger.start('start', 'epoch', 'episode', 'run', 'step')
 
+        checkpoint_path = Path(logger.root) / logger.prefix / "checkpoints"  # type: ignore
+        checkpoint_path.mkdir(exist_ok=True)
+
         if self.multi_gpu:
             print("====================broadcasting parameters")
             model_params = [self.alg.actor_critic.state_dict()]
@@ -154,7 +156,7 @@ class Runner:
                 for i in range(self.num_steps_per_env):
                     actions = self.alg.act(obs[:num_train_envs], privileged_obs[:num_train_envs],
                                                  obs_history[:num_train_envs])
-                    
+
                     ret = self.env.step(actions)
                     obs_dict, rewards, dones, infos = ret
                     obs, privileged_obs, obs_history = obs_dict["obs"], obs_dict["privileged_obs"], obs_dict[
@@ -236,26 +238,36 @@ class Runner:
                 if it % RunnerArgs.save_interval == 0 or it == tot_iter - 1:
                     with logger.Sync():
                         print(f"Saving model at iteration {it}")
-                        path = Path(f'checkpoints/')
-                        path.mkdir(exist_ok=True)
 
-                        logger.torch_save(self.alg.actor_critic.state_dict(), str(path / f"ac_weights_{it:06d}.pt"))
-                        logger.duplicate(str(path / f"ac_weights_{it:06d}.pt"), str(path / "ac_weights_last.pt"))
+                        logger.torch_save(self.alg.actor_critic.state_dict(), f"checkpoints/ac_weights_{it:06d}.pt")
 
-                        adaptation_module_path = str(path / f'adaptation_module_{it:06d}.jit')
+                        adaptation_module_path = str(checkpoint_path / f'adaptation_module_{it:06d}.jit')
                         adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
                         traced_script_adaptation_module = torch.jit.script(adaptation_module)  #type: ignore
                         traced_script_adaptation_module.save(adaptation_module_path)  # type: ignore
 
-                        body_path = str(path / f'body_{it:06d}.jit')
+                        body_path = str(checkpoint_path / f'body_{it:06d}.jit')
                         body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
                         traced_script_body_module = torch.jit.script(body_model)  # type: ignore
                         traced_script_body_module.save(body_path)  # type: ignore
 
-                        logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
-                        logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
-
             self.current_learning_iteration += num_learning_iterations
+
+        with logger.Sync():
+            print(f"Saving model at iteration after training")
+
+            logger.torch_save(self.alg.actor_critic.state_dict(), f"checkpoints/ac_weights_latest.pt")
+
+            adaptation_module_path = str(checkpoint_path / f'adaptation_module_latest.jit')
+            adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
+            traced_script_adaptation_module = torch.jit.script(adaptation_module)  #type: ignore
+            traced_script_adaptation_module.save(adaptation_module_path)  # type: ignore
+
+            body_path = str(checkpoint_path / f'body_latest.jit')
+            body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
+            traced_script_body_module = torch.jit.script(body_model)  # type: ignore
+            traced_script_body_module.save(body_path)  # type: ignore
+
 
     def log_video(self, it):
         if it - self.last_recording_it >= RunnerArgs.save_video_interval:
@@ -270,7 +282,7 @@ class Runner:
             import numpy as np
             video_array = np.concatenate([np.expand_dims(frame, axis=0) for frame in frames ], axis=0).swapaxes(1, 3).swapaxes(2, 3)
             print(video_array.shape)
-            logger.save_video(frames, f"videos/{it:05d}.mp4", fps=1 / self.env.dt)
+            logger.save_video(frames, f"videos/{it:06d}.mp4", fps=1 / self.env.dt)
             wandb.log({"video": wandb.Video(video_array, fps=1 / self.env.dt, format='mp4')}, step=it)
 
     def get_inference_policy(self, device=None):

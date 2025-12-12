@@ -14,6 +14,8 @@ from globe_walking_go2.go2_gym.utils.math_utils import quat_apply_yaw, wrap_to_p
 from globe_walking_go2.go2_gym.utils.terrain import Terrain, perlin
 from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
+from globe_walking_go2.go2_gym.rewards.eureka_reward import EurekaReward
+from globe_walking_go2.go2_gym.rewards.eureka_original_reward import EurekaOriginalReward
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless,
@@ -1331,9 +1333,10 @@ class LeggedRobot(BaseTask):
             Looks for self._reward_<REWARD_NAME>, where <REWARD_NAME> are names of all non zero reward scales in the cfg.
         """
         # reward containers
-        from globe_walking_go2.go2_gym.rewards.eureka_reward import EurekaReward
-
-        reward_containers = {"EurekaReward": EurekaReward}
+        reward_containers = {
+            "EurekaReward": EurekaReward,
+            "EurekaOriginalReward": EurekaOriginalReward,
+        }
         self.reward_container = reward_containers[self.cfg.rewards.reward_container_name](self)
 
         if "compute_reward" in dir(self.reward_container):
@@ -1352,6 +1355,8 @@ class LeggedRobot(BaseTask):
                 self.reward_names.append(name)
                 self.reward_functions.append(getattr(self.reward_container, '_reward_' + name))
 
+        print("REWARD FUNCTIONS")
+        print(self.reward_names)
         # reward episode sums
         self.episode_sums = {
             name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)

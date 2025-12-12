@@ -3,12 +3,13 @@ import os
 import argparse
 
 
-def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None):
+def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0):
     import isaacgym
     assert isaacgym
     import torch
+    import wandb
 
-    from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
+    from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
     from globe_walking_go2.go2_gym.envs.go2.go2_config import config_go2
     from globe_walking_go2.go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
 
@@ -19,6 +20,8 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     from globe_walking_go2.go2_gym_learn.ppo_cse import RunnerArgs
 
     from ml_logger import logger
+
+    set_seed(seed, torch_deterministic=False)
 
     if dr_config == "eureka":
         Cfg.env = Cfg.env_full
@@ -42,10 +45,9 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
         RunnerArgs.load_run = resume_path
         RunnerArgs.resume_checkpoint = os.path.join(RunnerArgs.load_run, "checkpoints", "ac_weights_last.pt")
 
-    import wandb
     if (Cfg.multi_gpu and int(os.getenv("LOCAL_RANK", "0")) == 0) or not Cfg.multi_gpu:
         run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-        time_now = logger.utcnow(f'globe_walking_go2/{wandb_group}/%Y-%m-%d_%H:%M:%S')
+        time_now = logger.utcnow(f'{wandb_group}/%Y-%m-%d_%H:%M:%S')
         logger.configure(time_now, root=str(run_dir))
         run_dir = run_dir / str(time_now)
 
@@ -85,7 +87,6 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
 if __name__ == '__main__':
     from pathlib import Path
     from globe_walking_go2.go2_gym import MINI_GYM_ROOT_DIR
-    from ml_logger import logger
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=50000)
@@ -97,9 +98,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--dr-config", type=str, required=True, choices=["eureka", "off"])
     parser.add_argument("--reward-config", type=str, required=True, choices=["eureka", "original"])
+
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     assert args.reward_config == "eureka", "Only Eureka reward is available" # TODO
 
     resume_path = None
-    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity)
+    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed)

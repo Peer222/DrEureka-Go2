@@ -9,7 +9,7 @@ def config_go2(Cnfg: Cfg):
     Cnfg.robot.name = "go2"  # from train script
     _ = Cnfg.init_state
 
-    _.pos = [0.0, 0.0, 0.42]  # x,y,z [m]
+    _.pos = [0.0, 0.0, 0.34]  # x,y,z [m]
     _.default_joint_angles = {  # = target angles [rad] when action = 0.0
         'FL_hip_joint': 0.1,  # [rad]
         'RL_hip_joint': 0.1,  # [rad]
@@ -41,7 +41,7 @@ def config_go2(Cnfg: Cfg):
     _.file = '{MINI_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
     _.foot_name = "foot"
     _.penalize_contacts_on = ["thigh", "calf"]
-    _.terminate_after_contacts_on = ["base"]
+    _.terminate_after_contacts_on = [] # globe walking go 1 does not use contact termination on "base"
     _.self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
     # ------------------ Go2: _.flip_visual_attachments = True
     # ------------------ Go1: _.flip_visual_attachments = False
