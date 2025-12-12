@@ -12,10 +12,12 @@ import shutil
 from matplotlib import pyplot as plt
 import pickle as pkl
 import json
+import subprocess
+import re
 
-from utils.misc import * 
-from utils.create_task import create_task
-from utils.extract_task_code import *
+from utils.misc import *   # type: ignore
+from utils.create_task import create_task  # type: ignore
+from utils.extract_task_code import *  # type: ignore
 
 EUREKA_ROOT_DIR = os.getcwd()
 ROOT_DIR = f"{EUREKA_ROOT_DIR}/.."
@@ -38,13 +40,13 @@ def main(cfg):
 
     env_name = cfg.env.env_name
     dr_template_file = f'{ROOT_DIR}/{env_name}/{cfg.env.dr_template_file}'
-    dr_template = file_to_string(dr_template_file)
+    dr_template = file_to_string(dr_template_file)  # type: ignore
     output_file = f"{ROOT_DIR}/{env_name}/{cfg.env.dr_output_file}"
 
     # Loading all text prompts
     prompt_dir = f'{EUREKA_ROOT_DIR}/prompts'
-    initial_system = file_to_string(f'{prompt_dir}/initial_system.txt')
-    initial_user = file_to_string(f'{prompt_dir}/initial_users/{cfg.env.env_name}.txt')
+    initial_system = file_to_string(f'{prompt_dir}/initial_system.txt')  # type: ignore
+    initial_user = file_to_string(f'{prompt_dir}/initial_users/{cfg.env.env_name}.txt')  # type: ignore
     initial_user = initial_user.format(task_description=task_description)
     messages = [{"role": "system", "content": initial_system}, {"role": "user", "content": initial_user}]
 
@@ -144,14 +146,16 @@ def main(cfg):
         # Execute the python file with flags
         rl_filepath = f"config_response{response_id}.txt"
         with open(rl_filepath, 'w') as f:
-            command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --dr-config eureka --reward-config eureka"
+            command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config eureka --reward-config eureka"
             command = command.split(" ")
             if not cfg.use_wandb:
                 command.append("--no-wandb")
             process = subprocess.Popen(command, stdout=f, stderr=f)
-        block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,
-                                log_status=True, iter_num=-1, response_id=response_id)
+
+        block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,  # type: ignore
+                             log_status=True, iter_num=-1, response_id=response_id)
         rl_runs.append(process)
+        block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
     # Gather RL training results and construct reward reflection
     contents = []
@@ -175,12 +179,12 @@ def main(cfg):
             continue
 
         content = ''
-        traceback_msg = filter_traceback(stdout_str)
+        traceback_msg = filter_traceback(stdout_str)  # type: ignore
 
         if traceback_msg == '':
             # If RL execution has no error, provide policy statistics feedback
             exec_success = True
-            run_log = construct_run_log(stdout_str)
+            run_log = construct_run_log(stdout_str)  # type: ignore
             
             train_iterations = np.array(run_log['iterations/']).shape[0]
             epoch_freq = max(int(train_iterations // 10), 1)

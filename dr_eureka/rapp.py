@@ -12,12 +12,13 @@ import json
 import hydra
 from tqdm import tqdm
 
-from utils.misc import *
+from utils.misc import *  # type: ignore
 
 DR_EUREKA_ROOT_DIR = os.getcwd()
 ROOT_DIR = f"{DR_EUREKA_ROOT_DIR}/.."
 
 def forward_locomotion_success(stdout, parameter, val):
+    # TODO check if values are valid for Go2
     """How close forward velocity is to target velocity, linearly measured."""
     lines = stdout.decode().split("\n")
     lines = [line for line in lines if "linear velocity" in line]
@@ -35,6 +36,7 @@ def forward_locomotion_success(stdout, parameter, val):
     return average_success >= -1.0
 
 def globe_walking_success(stdout, parameter, val):
+    # TODO check if values are valid for Go2
     """Whether the robot is balanced on the ball (and not floating)."""
     lines = stdout.decode().split("\n")
     lines = [line for line in lines if "z-position" in line]
@@ -54,21 +56,21 @@ def success(cfg, stdout, parameter, val):
     For example, extreme gravity can cause the robot to float or move with high velocity.
     """
 
-    if cfg.env.env_name == "forward_locomotion":
+    if cfg.env.env_name == "forward_locomotion" or cfg.env.env_name == "forward_locomotion_go2":
         return forward_locomotion_success(stdout, parameter, val)
-    elif cfg.env.env_name == "globe_walking":
+    elif cfg.env.env_name == "globe_walking" or cfg.env.env_name == "globe_walking_go2":
         return globe_walking_success(stdout, parameter, val)
     else:
         raise NotImplementedError
 
 def increase_perturbation_interval(cfg, dr, parameter):
     # Increases frequency of perturbations to test within short play iterations
-    if cfg.env.env_name == "forward_locomotion":
+    if cfg.env.env_name == "forward_locomotion" or cfg.env.env_name == "forward_locomotion_go2":
         if parameter == "gravity_range":
             dr = dr.replace("gravity_rand_interval_s = 10", "gravity_rand_interval_s = 1")
         if parameter == "push_vel_xy_range":
             dr = dr.replace("push_interval_s = 15", "push_interval_s = 1")
-    elif cfg.env.env_name == "globe_walking":
+    elif cfg.env.env_name == "globe_walking" or cfg.env.env_name == "globe_walking_go2":
         if parameter == "gravity_range":
             dr = dr.replace("gravity_rand_interval_s = 10", "gravity_rand_interval_s = 0.5")
         if parameter == "robot_push_vel_range":
@@ -84,7 +86,7 @@ def increase_perturbation_interval(cfg, dr, parameter):
 def test_parameter(cfg, parameter, test_vals):
     env_name = cfg.env.env_name
     dr_template_file = f'{ROOT_DIR}/{env_name}/{cfg.env.dr_template_file}'
-    dr_template = file_to_string(dr_template_file)
+    dr_template = file_to_string(dr_template_file)  # type: ignore
     output_file = f"{ROOT_DIR}/{env_name}/{cfg.env.dr_output_file}"
 
     lowest_successful_idx, highest_successful_idx = float("inf"), float("-inf")
@@ -96,7 +98,8 @@ def test_parameter(cfg, parameter, test_vals):
         with open(output_file, 'w') as f:
             f.write(dr)
 
-        set_freest_gpu()
+        # TODO multi gpu support
+        #set_freest_gpu()
         command = f"python -u {ROOT_DIR}/{cfg.env.env_name}/{cfg.env.play_script} --headless --iterations {cfg.env.play_iterations} --run {cfg.run_path} --dr-config eureka --no-video --verbose"
         command = command.split(" ")
         os.environ["TQDM_DISABLE"] = "1"
@@ -119,12 +122,13 @@ def test_parameter(cfg, parameter, test_vals):
 @hydra.main(config_path="cfg", config_name="config_rapp", version_base="1.1")
 def main(cfg):
     # Generic ranges based on valid bounds
+    # TODO check if values are valid for Go2 as well
     min_0 = [0.0, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0]
     limit_01 = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     centered_0 = [-10.0, -5.0, -1.0, -0.5, -0.1, -0.01, 0.0, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0]
     centered_1 = [0.0, 0.5, 0.9, 1.0, 1.1, 1.5, 2.0]
 
-    if cfg.env.env_name == "forward_locomotion":
+    if cfg.env.env_name == "forward_locomotion" or cfg.env.env_name == "forward_locomotion_go2":
         parameter_test_vals = {
             "friction_range": min_0,
             "restitution_range": limit_01,
@@ -145,7 +149,7 @@ def main(cfg):
             "push_vel_xy_range": "This is the range of magnitudes of a vector added onto the robot's xy velocity.",
             "gravity_range": "This is the range of values added onto each dimension of [0.0, 0.0, -9.8]. For example, [0.0, 0.0] would keep gravity constant."
         }
-    elif cfg.env.env_name == "globe_walking":
+    elif cfg.env.env_name == "globe_walking" or cfg.env.env_name == "globe_walking_go2":
         parameter_test_vals = {
             "robot_friction_range": min_0,
             "robot_restitution_range": limit_01,

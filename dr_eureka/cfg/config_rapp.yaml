@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - env: forward_locomotion
+  - env: forward_locomotion_go2
   - override hydra/launcher: local
   - override hydra/output: local
 
