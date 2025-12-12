@@ -1,4 +1,5 @@
 runs/
+slurm_logs/
 eureka/nhwpduep/
 
 # Byte-compiled / optimized / DLL files
