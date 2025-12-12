@@ -110,7 +110,7 @@ def train_go1(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     import wandb
     if (Cfg.multi_gpu and int(os.getenv("LOCAL_RANK", "0")) == 0) or not Cfg.multi_gpu:
         run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-        time_now = logger.utcnow(f'globe_walking/{wandb_group}/%Y-%m-%d_%H:%M:%S')
+        time_now = logger.utcnow(f'{wandb_group}/%Y-%m-%d_%H:%M:%S')
         logger.configure(time_now, root=str(run_dir))
         run_dir = run_dir / str(time_now)
         logger.log_text("""

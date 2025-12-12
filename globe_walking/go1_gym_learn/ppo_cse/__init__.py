@@ -66,7 +66,6 @@ class RunnerArgs(PrefixProto, cli=False):
 
 
 class Runner:
-
     def __init__(self, env, device='cpu', multi_gpu=False):
         from .ppo import PPO
 
@@ -115,6 +114,9 @@ class Runner:
         self.env.reset()
 
     def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, curriculum_dump_freq=500, eval_expert=False):
+        checkpoint_path = Path(logger.root) / logger.prefix / "checkpoints"  # type: ignore
+        checkpoint_path.mkdir(exist_ok=True)
+
         logger.start('start', 'epoch', 'episode', 'run', 'step')
 
         if self.multi_gpu:
@@ -235,11 +237,9 @@ class Runner:
                 if it % RunnerArgs.save_interval == 0 or it == tot_iter - 1:
                     with logger.Sync():
                         print(f"Saving model at iteration {it}")
-                        path = Path(f'checkpoints/')
-                        path.mkdir(exist_ok=True)
 
-                        logger.torch_save(self.alg.actor_critic.state_dict(), str(path / f"ac_weights_{it:06d}.pt"))
-                        logger.duplicate(str(path / f"ac_weights_{it:06d}.pt"), str(path / "ac_weights_last.pt"))
+                        logger.torch_save(self.alg.actor_critic.state_dict(), str(checkpoint_path / f"ac_weights_{it:06d}.pt"))
+                        # logger.duplicate(str(path / f"ac_weights_{it:06d}.pt"), str(path / "ac_weights_last.pt"))
 
                         # ac_weight_path = f'{path}/ac_weights_{it}.pt'
                         # torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
@@ -250,7 +250,7 @@ class Runner:
                         # torch.save(self.alg.actor_critic.state_dict(), ac_weight_path)
                         # wandb.save(ac_weight_path, policy="live")
 
-                        adaptation_module_path = str(path / f'adaptation_module_{it:06d}.jit')
+                        adaptation_module_path = str(checkpoint_path / f'adaptation_module_{it:06d}.jit')
                         adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
                         traced_script_adaptation_module = torch.jit.script(adaptation_module)  #type: ignore
                         traced_script_adaptation_module.save(adaptation_module_path)  # type: ignore
@@ -258,7 +258,7 @@ class Runner:
                         # adaptation_module_path = f'{path}/adaptation_module_latest.jit'
                         # traced_script_adaptation_module.save(adaptation_module_path)
 
-                        body_path = str(path / f'body_{it:06d}.jit')
+                        body_path = str(checkpoint_path / f'body_{it:06d}.jit')
                         body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
                         traced_script_body_module = torch.jit.script(body_model)  # type: ignore
                         traced_script_body_module.save(body_path)  # type: ignore
@@ -266,8 +266,8 @@ class Runner:
                         # body_path = f'{path}/body_latest.jit'
                         # traced_script_body_module.save(body_path)
 
-                        logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
-                        logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
+                        # logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
+                        # logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
 
                     # ac_weights_path = f"{path}/ac_weights_{it}.pt"
                     # torch.save(self.alg.actor_critic.state_dict(), ac_weights_path)
