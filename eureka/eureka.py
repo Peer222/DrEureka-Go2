@@ -20,13 +20,16 @@ from utils.extract_task_code import *  # type: ignore
 EUREKA_ROOT_DIR = os.getcwd()
 ROOT_DIR = f"{EUREKA_ROOT_DIR}/.."
 
-TIMESTAMP = time.strftime("%Y-%m-%d_%H:%M")
 
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
     workspace_dir = Path.cwd()
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {EUREKA_ROOT_DIR}")
+
+    TIMESTAMP = workspace_dir.name
+    (workspace_dir / "rewards").mkdir()
+    (workspace_dir / "logs").mkdir()
 
     openai.api_key = "..."
     openai.api_base = "http://0.0.0.0:8000/v1"
@@ -145,9 +148,9 @@ def main(cfg):
                 if line.strip().startswith("def "):
                     code_string = "\n".join(lines[i:])
                     break
-            
+
             code_runs.append(code_string)
-                    
+
             # Add the Eureka Reward Signature to the environment code
             cur_task_rew_code_string = task_rew_code_string.replace("# INSERT EUREKA REWARD HERE", code_string)
 
@@ -155,27 +158,29 @@ def main(cfg):
             with open(output_file, 'w') as file:
                 file.writelines(cur_task_rew_code_string + '\n')
 
-            with open(f"env_iter{iter}_response{response_id}_rewardonly.py", 'w') as file:
+            with open(f"rewards/env_iter{iter}_response{response_id}_rewardonly.py", 'w') as file:
                 file.writelines(code_string + '\n')
 
             # Copy the generated environment code to hydra output directory for bookkeeping
-            shutil.copy(output_file, f"env_iter{iter}_response{response_id}.py")
+            shutil.copy(output_file, f"rewards/env_iter{iter}_response{response_id}.py")
 
             # Find the freest GPU to run GPU-accelerated RL
             # set_freest_gpu()  # TODO not working on luis slurm cluster
-            
+
             # TODO support parallel executions again
             # Execute the python file with flags
-            rl_filepath = f"env_iter{iter}_response{response_id}.txt"
-            with open(rl_filepath, 'w') as f:
-                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group {env_name}-eureka-{TIMESTAMP}"
+            rl_logpath = f"logs/env_iter{iter}_response{response_id}.txt"
+            with open(rl_logpath, 'w') as f:
+                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
                 process = subprocess.Popen(command, stdout=f, stderr=f)
-            #block_until_training(rl_filepath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,
-            #                     log_status=True, iter_num=iter, response_id=response_id)
+
+            # probably needed so that rewards are not overridden
+            block_until_training(rl_logpath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,  # type: ignore
+                                 log_status=True, iter_num=iter, response_id=response_id)
             rl_runs.append(process)
             block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
@@ -189,12 +194,12 @@ def main(cfg):
         exec_success = False 
         for response_id, (code_run, rl_run) in enumerate(zip(code_runs, rl_runs)):
             rl_run.communicate()
-            rl_filepath = f"env_iter{iter}_response{response_id}.txt"
-            code_paths.append(f"env_iter{iter}_response{response_id}.py")
+            rl_logpath = f"logs/env_iter{iter}_response{response_id}.txt"
+            code_paths.append(f"rewards/env_iter{iter}_response{response_id}.py")
             try:
-                with open(rl_filepath, 'r') as f:
-                    stdout_str = f.read() 
-            except: 
+                with open(rl_logpath, 'r') as f:
+                    stdout_str = f.read()
+            except:
                 content = execution_error_feedback.format(traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!")
                 content += code_output_tip
                 contents.append(content) 
