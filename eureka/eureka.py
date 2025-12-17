@@ -202,7 +202,7 @@ def main(cfg):
             except:
                 content = execution_error_feedback.format(traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!")
                 content += code_output_tip
-                contents.append(content) 
+                contents.append(content)
                 successes.append(DUMMY_FAILURE)
                 reward_correlations.append(DUMMY_FAILURE)
                 continue
@@ -214,6 +214,12 @@ def main(cfg):
                 # If RL execution has no error, provide policy statistics feedback
                 exec_success = True
                 run_log = construct_run_log(stdout_str)  # type: ignore
+                if run_log is None:
+                    logging.warning(f"Skipping Run {response_id}!")
+                    contents.append("Unknown error")
+                    successes.append(DUMMY_FAILURE)
+                    reward_correlations.append(DUMMY_FAILURE)
+                    continue
 
                 train_iterations = np.array(run_log['iterations/']).shape[0]
                 epoch_freq = max(int(train_iterations // 10), 1)

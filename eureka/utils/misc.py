@@ -73,6 +73,9 @@ def construct_run_log(stdout_str):
             run_log[key] = run_log.get(key, []) + [float(val)]
     run_log["gpt_reward"] = []
     run_log["gt_reward"] = []
+    if "consecutive_successes" not in run_log.keys():
+        logging.warning("'consecutive_successes' is missing in run log!")
+        return None
     for i in range(len(run_log["consecutive_successes"])):
         cur_sum = 0
         for key in run_log:
