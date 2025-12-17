@@ -17,6 +17,8 @@ from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 from globe_walking_go2.go2_gym.rewards.eureka_reward import EurekaReward
 from globe_walking_go2.go2_gym.rewards.eureka_original_reward import EurekaOriginalReward
 
+import logging
+
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless,
                  initial_dynamics_dict=None, terrain_props=None, custom_heightmap=None):
@@ -1353,11 +1355,13 @@ class LeggedRobot(BaseTask):
                 if not name.startswith("_reward_"):
                     continue
                 name = name.replace("_reward_", "")
+                if "total" in name:
+                    logging.warning(f"LLM generated _reward_total function instead or additionally! This reward function {name} will be skipped")
+                    continue
                 self.reward_names.append(name)
                 self.reward_functions.append(getattr(self.reward_container, '_reward_' + name))
+        logging.info(f"Reward functions: {self.reward_names}")
 
-        print("REWARD FUNCTIONS")
-        print(self.reward_names)
         # reward episode sums
         self.episode_sums = {
             name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
