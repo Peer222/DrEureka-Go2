@@ -3,7 +3,7 @@
 #SBATCH --ntasks=2
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
-#SBATCH --gres=gpu:rtx3090:2
+#SBATCH --gres=gpu:rtx_3090:2
 
 #SBATCH -J vllm-dr
 #SBATCH -o slurm_logs/vllm-dr/%j.out

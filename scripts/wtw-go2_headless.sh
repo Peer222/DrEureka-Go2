@@ -3,7 +3,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH -J wtw-go2
 #SBATCH --mem=16G
-#SBATCH --gres=gpu:rtx3090:1
+#SBATCH --gres=gpu:rtx_3090:1
 #SBATCH -o slurm_logs/wtw-go2/slurm/%j.out
 #SBATCH --partition=tnt
 #SBATCH --time=24:00:00

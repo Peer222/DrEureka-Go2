@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
-#SBATCH --gres=gpu:rtx3090:1
+#SBATCH --gres=gpu:rtx_3090:1
 
 #SBATCH -J globe-walking
 #SBATCH -o slurm_logs/globe-walking/%j.out

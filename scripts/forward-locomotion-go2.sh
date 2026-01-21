@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
-#SBATCH --gres=gpu:rtx3090:1
+#SBATCH --gres=gpu:rtx_3090:1
 
 #SBATCH -J forward-locomotion-go2
 #SBATCH -o slurm_logs/forward-locomotion-go2/%j.out
