@@ -9,12 +9,14 @@ hydra:
     chdir: True
 
 # LLM parameters
-model: /bigwork/nhwpduep/master_thesis/models/openai/gpt-oss-20b  # original: gpt-4-0125-preview
-temperature: 1.0
+model_path: /bigwork/nhwpduep/master_thesis/models/
+model: cmd_line_argument  # original: gpt-4-0125-preview
+thinking_enabled: True  # for Qwen3 models
 
 # Eureka parameters
 iteration: 5                # how many iterations of Eureka to run
 sample: 16                  # number of Eureka samples to generate per iteration
+feedback_series_size: 10    # Number of values included in feedback prompt per metric
 
 # GPU setup
 num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat file not found)

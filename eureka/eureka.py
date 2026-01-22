@@ -1,350 +1,416 @@
 import hydra
 import numpy as np 
 import json
-import logging 
-import matplotlib.pyplot as plt
-import os
-import openai
+import pandas as pd
 import re
+import logging 
+import openai
+import wandb
+import omegaconf
 import subprocess
 from pathlib import Path
 import shutil
 import time
+import requests
 from ml_logger import logger
 
 # relative imports for editor
 from utils.misc import *  # type: ignore
 from utils.extract_task_code import *  # type: ignore
+import plots_plus
+from typing import Literal
 
+EUREKA_ROOT_DIR = Path.cwd()
+ROOT_DIR = EUREKA_ROOT_DIR / ".."
 
-EUREKA_ROOT_DIR = os.getcwd()
-ROOT_DIR = f"{EUREKA_ROOT_DIR}/.."
+def generate_samples(cfg, messages, stats):
+    openai.api_key = "..."
+    vllm_host = "http://0.0.0.0:8000"
+    openai.api_base = f"{vllm_host}/v1"
+
+    responses = []
+
+    for s in range(cfg.sample):
+        response  = None
+        for attempt in range(3):
+            try:
+                response = openai.ChatCompletion.create(
+                    model=f"{cfg.model_path}{cfg.model}",
+                    messages=messages,
+                    n=1,
+                )
+                break
+            except Exception as e:
+                logging.info(f"Attempt {attempt+1} failed with error: {e}")
+                time.sleep(1)
+        if response is None:
+            logging.info("Code terminated due to too many failed attempts!")
+            exit()
+
+        responses.extend(response["choices"])  #type: ignore
+        stats["prompt_tokens"].append( response["usage"]["prompt_tokens"] ) #type: ignore
+        stats["completion_tokens"].append( response["usage"]["completion_tokens"] ) #type: ignore
+        stats["total_tokens"].append( response["usage"]["total_tokens"] ) #type: ignore
+
+    # split thinking and non thinking content
+    for i, response in enumerate(responses):
+        text = response["message"]["content"]
+        thinking_content = re.search(r"<think>(.*?)</think>", text, flags=re.DOTALL)
+        response["message"]["thinking"] = thinking_content.group(1) if thinking_content else "None"
+        response["message"]["answer"] = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+        if (len(response["message"]["thinking"])):
+            res = requests.post(f"{vllm_host}/tokenize", headers={"Content-Type": "application/json"}, json={"model": f"{cfg.model_path}{cfg.model}", "prompt": response["message"]["answer"]})
+            stats["thinking_tokens"].append( stats["completion_tokens"][i] - res.json()["count"] )
+            stats["answer_tokens"].append( res.json()["count"] )
+        else:
+            stats["thinking_tokens"].append( 0 )
+            stats["answer_tokens"].append( stats["completion_tokens"][i] )
+    return responses, stats
+
+def add_failure_values(stats):
+    stats["execution"].append(0)
+    stats["fitness_score_max"].append(0)
+    stats["fitness_score_mean"].append(0)
+    stats["fitness_score_min"].append(0)
+    stats["episode_length"].append(0)
+    # stats["prompt_tokens"].append(DUMMY_FAILURE) # correct values added already before evaluation failure
+    # stats["completion_tokens"].append(DUMMY_FAILURE)
+    # stats["total_tokens"].append(DUMMY_FAILURE)
+    stats["reward_total_max"].append(0)
+    stats["reward_total_mean"].append(0)
+    stats["reward_total_min"].append(0)
+    stats["num_reward_functions"].append(0)
+    stats["reward_names"].append([])
+    #"reward_correlation": [],  # not implemented
+    return stats
 
 
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
     workspace_dir = Path.cwd()
     logging.info(f"Workspace: {workspace_dir}")
-    logging.info(f"Project Root: {EUREKA_ROOT_DIR}")
+    logging.info(f"Project Root: {str(EUREKA_ROOT_DIR)}")
 
     TIMESTAMP = workspace_dir.name
     (workspace_dir / "rewards").mkdir()
     (workspace_dir / "logs").mkdir()
+    (workspace_dir / "chats").mkdir()
+    (workspace_dir / "graphics").mkdir()
 
-    openai.api_key = "..."
-    openai.api_base = "http://0.0.0.0:8000/v1"
+    logging.info(f"Using LLM: {cfg.model_path}{cfg.model}")
+    logging.info("Task: " + cfg.env.task)
+    logging.info("Task description: " + cfg.env.description)
 
-    task = cfg.env.task
-    task_description = cfg.env.description
-    model = cfg.model
-    logging.info(f"Using LLM: {model}")
-    logging.info("Task: " + task)
-    logging.info("Task description: " + task_description)
+    maximum_fitness_score = -1
+    maximum_sample = -1
+    maximum_iteration = -1
 
-    env_name = cfg.env.env_name.lower()
-    task_rew_file = f'{ROOT_DIR}/{env_name}/{cfg.env.reward_template_file}'
-    task_obs_file = f'{EUREKA_ROOT_DIR}/envs/{env_name}.py'
-    shutil.copy(task_obs_file, f"env_init_obs.py")
-    task_rew_code_string = file_to_string(task_rew_file)  # type: ignore
-    task_obs_code_string = file_to_string(task_obs_file)  # type: ignore
-    output_file = f"{ROOT_DIR}/{env_name}/{cfg.env.reward_output_file}"
-
-    # Loading all text prompts
-    prompt_dir = f'{EUREKA_ROOT_DIR}/prompts'
-    initial_system = file_to_string(f'{prompt_dir}/initial_system.txt')  # type: ignore
-    code_output_tip = file_to_string(f'{prompt_dir}/code_output_tip.txt')  # type: ignore
-    code_feedback = file_to_string(f'{prompt_dir}/code_feedback.txt')  # type: ignore
-    initial_user = file_to_string(f'{prompt_dir}/initial_user.txt')  # type: ignore
-    reward_signature = file_to_string(f'{prompt_dir}/reward_signatures/{env_name}.txt')  # type: ignore
-    policy_feedback = file_to_string(f'{prompt_dir}/policy_feedback.txt')  # type: ignore
-    execution_error_feedback = file_to_string(f'{prompt_dir}/execution_error_feedback.txt')  # type: ignore
-
-    initial_system = initial_system.format(task_reward_signature_string=reward_signature) + code_output_tip
-    initial_user = initial_user.format(task_obs_code_string=task_obs_code_string, task_description=task_description)
-    messages = [{"role": "system", "content": initial_system}, {"role": "user", "content": initial_user}]
-
-    DUMMY_FAILURE = -10000.
-    max_successes = []
-    max_successes_reward_correlation = []
-    execute_rates = []
-    best_code_paths = []
-    max_success_overall = DUMMY_FAILURE
-    max_success_reward_correlation_overall = DUMMY_FAILURE
-    max_reward_code_path = None
+    full_stats = pd.DataFrame()
+    full_metrics = []
 
     logger.log_params(Cfg=vars(cfg))
+    if cfg.use_wandb:
+        config = omegaconf.OmegaConf.to_container(
+            cfg, resolve=True, throw_on_missing=True
+        )
+        run = wandb.init(
+            dir=workspace_dir,
+            entity="peer222-luh",
+            project="master-thesis",
+            name=f"{cfg.model}_{TIMESTAMP}",
+            group="eureka",
+            config=config  # type: ignore
+        )
+
+    env_name = cfg.env.env_name.lower()
+    task_rew_file = ROOT_DIR / env_name / cfg.env.reward_template_file
+    task_obs_file = EUREKA_ROOT_DIR / "envs" / f"{env_name}.py"
+    output_file = ROOT_DIR / env_name / cfg.env.reward_output_file
+
+    task_rew_code_string = file_to_string(task_rew_file)  # type: ignore
+    task_obs_code_string = file_to_string(task_obs_file)  # type: ignore
+    no_think_flag = ""
+    if not cfg.thinking_enabled: no_think_flag = " /no_think"
+
+    # Loading all text prompts
+    prompt_dir = EUREKA_ROOT_DIR / "prompts"
+    initial_system = file_to_string( prompt_dir / "initial_system.txt" )  # type: ignore
+    code_output_tip = file_to_string( prompt_dir / "code_output_tip.txt" )  # type: ignore
+    code_feedback = file_to_string( prompt_dir / "code_feedback.txt" )  # type: ignore
+    initial_user = file_to_string( prompt_dir / "initial_user.txt" )  # type: ignore
+    reward_signature = file_to_string(prompt_dir/ "reward_signatures" / f"{env_name}.txt")  # type: ignore
+    policy_feedback = file_to_string( prompt_dir/ "policy_feedback.txt")  # type: ignore
+    execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")  # type: ignore
+
+    initial_system = initial_system.format(task_reward_signature_string=reward_signature) + code_output_tip + no_think_flag
+    initial_user = initial_user.format(task_obs_code_string=task_obs_code_string, task_description=cfg.env.description)
+    messages = [
+        {"role": "system", "content": initial_system},
+        {"role": "user", "content": initial_user}
+    ]
 
     # Eureka generation loop
     for iter in range(cfg.iteration):
+        logging.info(f"Iteration {iter}: Generating {cfg.sample} samples")
+
+        stats = {
+            "prompt_tokens": [],
+            "completion_tokens": [],
+            "thinking_tokens": [],
+            "answer_tokens": [],
+            "total_tokens": [],
+            "execution": [],
+            "fitness_score_max": [],
+            "fitness_score_mean": [],
+            "fitness_score_min": [],
+            #"reward_correlation": [],  # not implemented
+            "episode_length": [],
+            "reward_total_max": [],
+            "reward_total_mean": [],
+            "reward_total_min": [],
+            "num_reward_functions": [],
+            "reward_names": [],
+        }
+        iteration_metrics = []
+
         # Get Eureka response
-        responses = []
-        response_cur = None
-        total_samples = 0
-        total_token = 0
-        total_completion_token = 0
-        chunk_size = cfg.sample if "gpt-3.5" in model else 4
+        samples, stats = generate_samples(cfg, messages, stats)
 
-        logging.info(f"Iteration {iter}: Generating {cfg.sample} samples with {cfg.model}")
+        # Launch all evaluations
+        evaluation_runs = []
+        for sample_idx, sample in enumerate(samples):
+            logging.info(f"Iteration {iter}: Processing Code Run {sample_idx}")
 
-        while True:
-            if total_samples >= cfg.sample:
-                break
-            for attempt in range(3):
-                try:
-                    response_cur = openai.ChatCompletion.create(
-                        model=model,
-                        messages=messages,
-                        temperature=cfg.temperature,
-                        n=chunk_size
-                    )
-                    total_samples += chunk_size
-                    break
-                except Exception as e:
-                    if attempt >= 10:
-                        chunk_size = max(int(chunk_size / 2), 1)
-                        print("Current Chunk Size", chunk_size)
-                    logging.info(f"Attempt {attempt+1} failed with error: {e}")
-                    time.sleep(1)
-            if response_cur is None:
-                logging.info("Code terminated due to too many failed attempts!")
-                exit()
-
-            responses.extend(response_cur["choices"])  #type: ignore
-            prompt_tokens = response_cur["usage"]["prompt_tokens"]  #type: ignore
-            total_completion_token += response_cur["usage"]["completion_tokens"]  #type: ignore
-            total_token += response_cur["usage"]["total_tokens"]  #type: ignore
-
-        if cfg.sample == 1:
-            logging.info(f"Iteration {iter}: GPT Output:\n " + responses[0]["message"]["content"] + "\n")
-
-        # Logging Token Information
-        logging.info(f"Iteration {iter}: Prompt Tokens: {prompt_tokens}, Completion Tokens: {total_completion_token}, Total Tokens: {total_token}")  #type: ignore
-
-        code_runs = [] 
-        rl_runs = []
-        for response_id in range(cfg.sample):
-            response_cur = responses[response_id]["message"]["content"]
-            logging.info(f"Iteration {iter}: Processing Code Run {response_id}")
-
-            # Regex patterns to extract python code enclosed in GPT response
-            patterns = [
-                r'```python(.*?)```',
-                r'```(.*?)```',
-                r'"""(.*?)"""',
-                r'""(.*?)""',
-                r'"(.*?)"',
-            ]
-            for pattern in patterns:
-                code_string = re.search(pattern, response_cur, re.DOTALL)
-                if code_string is not None:
-                    code_string = code_string.group(1).strip()
-                    break
-            code_string = response_cur if not code_string else code_string  #type: ignore
-
-            # Remove unnecessary imports
-            lines = code_string.split("\n")
-            lines = [" "*4 + line for line in lines]
-            for i, line in enumerate(lines):
-                if line.strip().startswith("def "):
-                    code_string = "\n".join(lines[i:])
-                    break
-
-            code_runs.append(code_string)
-
+            code_string = parse_generated_reward_functions(sample["message"]["answer"])  # type: ignore
             # Add the Eureka Reward Signature to the environment code
             cur_task_rew_code_string = task_rew_code_string.replace("# INSERT EUREKA REWARD HERE", code_string)
-
-            # Save the new environment code when the output contains valid code string!
-            with open(output_file, 'w') as file:
+            with open(output_file, 'w') as file: # TODO maybe adapt for concurrency
                 file.writelines(cur_task_rew_code_string + '\n')
 
-            with open(f"rewards/env_iter{iter}_response{response_id}_rewardonly.py", 'w') as file:
-                file.writelines(code_string + '\n')
-
-            # Copy the generated environment code to hydra output directory for bookkeeping
-            shutil.copy(output_file, f"rewards/env_iter{iter}_response{response_id}.py")
+            ### saving messages, llm response and generated reward code
+            with open(f"chats/iteration-{iter}_sample-{sample_idx}.md", 'w') as file:
+                for message in messages:
+                    file.write(f"\n\n## {message['role']}:\n\n")
+                    file.write(f"{message['content']}\n")
+                file.write(f"\n\n ---------- \n## {sample['message']['role']}:\n\n")
+                file.write(f'***Thinking:***\n\n{sample["message"]["thinking"]}\n\n***Final Answer:***\n\n{sample["message"]["answer"]}')
+            shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
+            ###
 
             # Find the freest GPU to run GPU-accelerated RL
             # set_freest_gpu()  # TODO not working on luis slurm cluster
-
             # TODO support parallel executions again
-            # Execute the python file with flags
-            rl_logpath = f"logs/env_iter{iter}_response{response_id}.txt"
+
+            rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.txt"
             with open(rl_logpath, 'w') as f:
+                # Execute the python file with flags
                 command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
-                process = subprocess.Popen(command, stdout=f, stderr=f)
+                evaluation_runs.append( subprocess.Popen(command, stdout=f, stderr=f) )
 
-            # probably needed so that rewards are not overridden
+            # needed so that rewards are not overridden
             block_until_training(rl_logpath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,  # type: ignore
-                                 log_status=True, iter_num=iter, response_id=response_id)
-            rl_runs.append(process)
-            block_until_queue_finished(rl_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
+                                 log_status=True, iter_num=iter, response_id=sample_idx)
+            block_until_queue_finished(evaluation_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
-        # Gather RL training results and construct reward reflection
-        code_feedbacks = []
-        contents = []
-        successes = []
-        reward_correlations = []
-        code_paths = []
-
-        exec_success = False 
-        for response_id, (code_run, rl_run) in enumerate(zip(code_runs, rl_runs)):
-            rl_run.communicate()
-            rl_logpath = f"logs/env_iter{iter}_response{response_id}.txt"
-            code_paths.append(f"rewards/env_iter{iter}_response{response_id}.py")
+        # Gather evaluation results and construct reward reflection
+        contents = []  # Logs and other feedback for LLM
+        for response_id, evaluation_run in enumerate(evaluation_runs):
+            evaluation_run.communicate()
+            rl_logpath = f"logs/iteration-{iter}_sample-{response_id}.txt"
             try:
                 with open(rl_logpath, 'r') as f:
                     stdout_str = f.read()
             except:
+                # TODO bugfixing by LLM not implemented
                 content = execution_error_feedback.format(traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!")
                 content += code_output_tip
                 contents.append(content)
-                successes.append(DUMMY_FAILURE)
-                reward_correlations.append(DUMMY_FAILURE)
+                add_failure_values(stats)
+                logging.error(f"ERROR: Could not open/read {rl_logpath}")
                 continue
 
             content = ''
             traceback_msg = filter_traceback(stdout_str)  # type: ignore
 
             if traceback_msg == '':
-                # If RL execution has no error, provide policy statistics feedback
-                exec_success = True
+                stats["execution"].append(1)
                 run_log = construct_run_log(stdout_str)  # type: ignore
                 if run_log is None:
-                    logging.warning(f"Skipping Run {response_id}!")
+                    logging.warning(f"WARNING: Stopped execution without error message: Skipping Run {response_id}!")
                     contents.append("Unknown error")
-                    successes.append(DUMMY_FAILURE)
-                    reward_correlations.append(DUMMY_FAILURE)
+                    add_failure_values(stats)
                     continue
 
-                train_iterations = np.array(run_log['iterations/']).shape[0]
-                epoch_freq = max(int(train_iterations // 10), 1)
+                # TODO CHECK!
+                logged_train_iterations = np.array(run_log['iterations']).shape[0]
+                step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
+                epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
+                logging.info(f"{logged_train_iterations=}; {step_size=}; {epoch_freq=}")
 
-                epochs_per_log = 10
-                content += policy_feedback.format(epoch_freq=epochs_per_log*epoch_freq)
-
-                # Compute Correlation between Human-Engineered and GPT Rewards
-                if "gt_reward" in run_log and "gpt_reward" in run_log:
-                    gt_reward = np.array(run_log["gt_reward"])
-                    gpt_reward = np.array(run_log["gpt_reward"])
-                    reward_correlation = np.corrcoef(gt_reward, gpt_reward)[0, 1]
-                    reward_correlations.append(reward_correlation)
+                content += policy_feedback.format(epoch_freq=epoch_freq)
 
                 # Add reward components log to the feedback
+                metrics = {}
+                reward_names = []
+                num_rewards = 0
                 for metric in sorted(run_log.keys()):
-                    if "/" not in metric:
-                        metric_cur = ['{:.2f}'.format(x) for x in run_log[metric][::epoch_freq]]
+                    if metric not in ["timesteps", "iterations"]:
+                        metric_cur = ['{:.2f}'.format(x) for x in run_log[metric][::step_size]]
                         metric_cur_max = max(run_log[metric])
                         metric_cur_mean = sum(run_log[metric]) / len(run_log[metric])
-                        if "consecutive_successes" == metric:
-                            successes.append(metric_cur_max)
                         metric_cur_min = min(run_log[metric])
-                        if metric != "gt_reward" and metric != "gpt_reward":
-                            if metric != "consecutive_successes":
-                                metric_name = metric 
-                            else:
-                                metric_name = "task score"
-                            content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f} \n"                    
-                        else:
-                            # Provide ground-truth score when success rate not applicable
-                            if "consecutive_successes" not in run_log:
-                                content += f"ground-truth score: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f} \n"                    
-                code_feedbacks.append(code_feedback)
+
+                        metric_name = metric
+                        if "fitness_score" == metric:
+                            stats["fitness_score_max"].append(metric_cur_max)
+                            stats["fitness_score_mean"].append(metric_cur_mean)
+                            stats["fitness_score_min"].append(metric_cur_min)
+                            metrics["fitness_score"] = run_log[metric]
+                            metric_name = "task score"
+                        elif "episode_length" == metric:
+                            stats["episode_length"].append(metric_cur_max)
+                        elif "total" in metric:
+                            stats["reward_total_max"].append(metric_cur_max)
+                            stats["reward_total_mean"].append(metric_cur_mean)
+                            stats["reward_total_min"].append(metric_cur_min)
+                            metrics["total"] = run_log[metric]
+                        elif "rew" in metric:
+                            num_rewards += 1
+                            rew_name = metric.split("rew ")[-1]
+                            reward_names.append(rew_name)
+                            metrics[rew_name] = run_log[metric]
+                        elif "loss" in metric:
+                            # losses should not be included in llm feedback
+                            metrics[metric] = run_log[metric]
+                            continue
+
+                        content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f}  \n"                    
+
                 content += code_feedback
+                stats["num_reward_functions"].append(num_rewards)
+                stats["reward_names"].append(reward_names)
+                iteration_metrics.append(metrics)
             else:
                 # Otherwise, provide execution traceback error feedback
-                successes.append(DUMMY_FAILURE)
-                reward_correlations.append(DUMMY_FAILURE)
+                add_failure_values(stats)
+                logging.warning(f"WARNING: Failed code execution of {response_id}: {traceback_msg}")
                 content += execution_error_feedback.format(traceback_msg=traceback_msg)
-
             content += code_output_tip
-            contents.append(content) 
+            contents.append(content)
 
-        # Repeat the iteration if all code generation failed
-        if not exec_success and cfg.sample != 1:
-            execute_rates.append(0.)
-            max_successes.append(DUMMY_FAILURE)
-            max_successes_reward_correlation.append(DUMMY_FAILURE)
-            best_code_paths.append(None)
-            logging.info("All code generation failed! Repeat this iteration from the current message checkpoint!")
-            continue
-
+        full_metrics.append(iteration_metrics)
+        logging.info(stats)
+        stats = pd.DataFrame(stats)
+        stats["iteration"] = iter
+        full_stats = pd.concat([full_stats, stats])
         # Select the best code sample based on the success rate
-        best_sample_idx = np.argmax(np.array(successes))
+        best_sample_idx = np.argmax(stats["fitness_score_max"])
         best_content = contents[best_sample_idx]
 
-        max_success = successes[best_sample_idx]
-        max_success_reward_correlation = reward_correlations[best_sample_idx]
-        execute_rate = np.sum(np.array(successes) >= 0.) / cfg.sample
+        best_fitness_score = np.max(stats["fitness_score_max"])
+        execution_rate = np.sum(stats["execution"]) / cfg.sample
 
         # Update the best Eureka Output
-        if max_success > max_success_overall:
-            max_success_overall = max_success
-            max_success_reward_correlation_overall = max_success_reward_correlation
-            max_reward_code_path = code_paths[best_sample_idx]
+        if best_fitness_score > maximum_fitness_score:
+            maximum_fitness_score = best_fitness_score
+            maximum_sample = best_sample_idx
+            maximum_iteration = iter
 
-        execute_rates.append(execute_rate)
-        max_successes.append(max_success)
-        max_successes_reward_correlation.append(max_success_reward_correlation)
-        best_code_paths.append(code_paths[best_sample_idx])
-
-        logging.info(f"Iteration {iter}: Max Success: {max_success}, Execute Rate: {execute_rate}, Max Success Reward Correlation: {max_success_reward_correlation}")
+        logging.info(f"Iteration {iter}: Max Fitness Score: {best_fitness_score:.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {maximum_fitness_score:.2f}")
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
-        logging.info(f"Iteration {iter}: GPT Output Content:\n" +  responses[best_sample_idx]["message"]["content"] + "\n")
-        logging.info(f"Iteration {iter}: User Content:\n" + best_content + "\n")
-
-        # Plot the success rate
-        fig, axs = plt.subplots(2, figsize=(6, 6))
-        fig.suptitle(f'{task}')
-
-        x_axis = np.arange(len(max_successes))
-
-        axs[0].plot(x_axis, np.array(max_successes))
-        axs[0].set_title("Max Success")
-        axs[0].set_xlabel("Iteration")
-
-        axs[1].plot(x_axis, np.array(execute_rates))
-        axs[1].set_title("Execute Rate")
-        axs[1].set_xlabel("Iteration")
-
-        fig.tight_layout(pad=3.0)
-        plt.savefig('summary.png')
-        np.savez('summary.npz', max_successes=max_successes, execute_rates=execute_rates, best_code_paths=best_code_paths, max_successes_reward_correlation=max_successes_reward_correlation)
 
         if len(messages) == 2:
-            messages += [{"role": "assistant", "content": responses[best_sample_idx]["message"]["content"]}]
+            messages += [{"role": "assistant", "content": samples[best_sample_idx]["message"]["content"]}]
             messages += [{"role": "user", "content": best_content}]
         else:
             assert len(messages) == 4
-            messages[-2] = {"role": "assistant", "content": responses[best_sample_idx]["message"]["content"]}
+            messages[-2] = {"role": "assistant", "content": samples[best_sample_idx]["message"]["content"]}
             messages[-1] = {"role": "user", "content": best_content}
 
-        # Save dictionary as JSON file
-        with open('messages.json', 'w') as file:
-            json.dump(messages, file, indent=4)
+    ###
+    full_stats["version"] = f"{cfg.model}_{TIMESTAMP}"
+    full_stats.to_csv("stats.csv")
+    if cfg.use_wandb:
+        table = wandb.Table(dataframe=full_stats)
+        run.log({"Stats": table})  # type: ignore
+    with open("metrics.json", "w") as f:
+        json.dump(full_metrics, f)
 
-    if max_reward_code_path is None: 
+    ###
+    if maximum_fitness_score < 0:
         logging.info("All iterations of code generation failed, aborting...")
-        logging.info("Please double check the output env_iter*_response*.txt files for repeating errors!")
+        logging.info("Please double check the output iteration-*_sample-*.txt files for repeating errors!")
         exit()
-    logging.info(f"Task: {task}, Max Training Success {max_success_overall}, Correlation {max_success_reward_correlation_overall}, Best Reward Code Path: {max_reward_code_path}")
+    max_reward_code_path = Path(f"rewards/iteration-{maximum_iteration}_sample-{maximum_sample}.py")
+    logging.info(f"\n Task: {cfg.env.task}, \n Max Training Fitness Score {maximum_fitness_score:.2f} \n Best Reward Code Path: {str(max_reward_code_path)}")
 
+    ### Defaults to best reward configuration
     best_reward = file_to_string(max_reward_code_path)  # type: ignore
     with open(output_file, 'w') as file:
         file.writelines(best_reward + '\n')
 
-    # Get run directory of best-performing policy
-    with open(max_reward_code_path.replace(".py", ".txt"), "r") as file:
+    ### Get run directory of best-performing policy
+    max_reward_log_path = Path("logs") / f"{max_reward_code_path.stem}.txt"
+    with open(max_reward_log_path, "r") as file:
         lines = file.readlines()
     for line in lines:
         if line.startswith("Dashboard: "):
             run_dir = line.split(": ")[1].strip()
             run_dir = run_dir.replace("http://app.dash.ml/", f"{ROOT_DIR}/{env_name}/runs/")
             logging.info("Best policy run directory: " + run_dir)
+
+    ### graphics
+    graphics_dir = workspace_dir / "graphics"
+    full_stats["version"] = cfg.model
+    execution_rate_df = plots_plus.utils.to_execution_rates(full_stats)
+    execution_rate_df["version"] = cfg.model
+    plots_plus.lineplot(execution_rate_df, x="iteration", y="execution_rate", hue="version", colorpalette=plots_plus.colors.LLM_COLOR_MAP, ylim=(-0.1, 1.1), filepath=graphics_dir / "execution_rates.png")
+
+    # use only successful evaluations
+    full_stats: pd.DataFrame = full_stats[full_stats["execution"] == 1]  #type: ignore (vscode bug)
+    plots_plus.scatteredlineplot(full_stats, x="iteration", y="fitness_score_max", hue="version", filepath=graphics_dir / "fitness_score_max.png")
+    plots_plus.scatteredlineplot(full_stats, x="iteration", y="reward_total_max", hue="version", filepath=graphics_dir / "reward_total_max.png")
+    plots_plus.scatteredlineplot(full_stats, x="iteration", y="episode_length", hue="version", filepath=graphics_dir / "episode_length.png")
+    plots_plus.scatteredlineplot(full_stats, x="iteration", y="num_reward_functions", hue="version", ylim=(0, 12), filepath=graphics_dir / "num_reward_functions.png")
+
+    tokens = plots_plus.utils.rotate_df(full_stats, "iteration", ["prompt_tokens", "completion_tokens", "total_tokens", "thinking_tokens", "answer_tokens"], "tokens")
+    plots_plus.lineplot(tokens, x="iteration", y="tokens", hue="type", hue_order=plots_plus.colors.TOKEN_ORDER, colorpalette=plots_plus.colors.TOKEN_COLOR_MAP, filepath=graphics_dir / "tokens.png")
+
+    metrics_df = plots_plus.utils.convert_metric_series(full_metrics, cfg.env.train_iterations)
+    losses_df: pd.DataFrame = metrics_df[metrics_df["metric_name"].str.match(".*loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
+    logging.info(f'Loss df cols and values: {losses_df.columns}, {losses_df["loss"].drop_duplicates()}')
+    plots_plus.gridlineplot(losses_df, x="training_iteration", y="value", hue="loss", axes="iteration", colorpalette=plots_plus.colors.REWARD_COLOR_MAP, filepath=graphics_dir / "losses_per_iter.png")
+    plots_plus.gridlineplot(losses_df, x="training_iteration", y="value", hue="iteration", axes="loss", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "losses_per_type.png")
+
+    reward_components_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score", "total"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    logging.info(f'Reward df cols and values: {reward_components_df.columns}, {reward_components_df["reward"].drop_duplicates()}')
+    plots_plus.gridlineplot(reward_components_df, x="training_iteration", y="value", hue="reward", axes="iteration", colorpalette=plots_plus.colors.REWARD_COLOR_MAP, filepath=graphics_dir / "rewards_per_iter.png")
+    plots_plus.gridlineplot(reward_components_df, x="training_iteration", y="value", hue="iteration", axes="reward", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "rewards_per_type.png")
+
+    rew_total_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "total"].rename({"value": "total_reward"}, axis=1)  # type: ignore
+    plots_plus.multilineplot(rew_total_df, x="training_iteration", y="total_reward", lines="sample", hue="iteration", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "total_reward.png")
+    fitness_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "fitness_score"].rename({"value": "fitness_score"}, axis=1)  # type: ignore
+    plots_plus.multilineplot(fitness_score_df, x="training_iteration", y="fitness_score", lines="sample", hue="iteration", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "fitness_score.png")
+
+    # correlations
+    corr_methods: List[Literal["spearman", "kendall", "pearson"]] = ["spearman", "kendall", "pearson"]
+    rewards_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    base_metric = "fitness_score"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = plots_plus.utils.get_correlation_df(base_df, rewards_df, "reward", corr_method)
+        plots_plus.gridlineplot(correlations_df, x="iteration", y=f"{corr_method}_correlation", hue="samples", axes="reward", colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP, filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png", ylim=(-1.1, 1.1))
+
+    base_metric = "value loss"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = plots_plus.utils.get_correlation_df(base_df, rewards_df, "reward", corr_method)
+        plots_plus.gridlineplot(correlations_df, x="iteration", y=f"{corr_method}_correlation", hue="samples", axes="reward", colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP, filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png", ylim=(-1.1, 1.1))
+
 
 if __name__ == "__main__":
     main()

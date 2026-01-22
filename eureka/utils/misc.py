@@ -56,31 +56,26 @@ def block_until_queue_finished(processes: List[subprocess.Popen], num_gpus: int,
 
 def construct_run_log(stdout_str):
     run_log = {}
-    lines = stdout_str.split('\n')
+    lines: List[str] = stdout_str.split('\n')
     for i, line in enumerate(lines):
         if line.startswith("│") and line.endswith("│"):
             line = line[1:-1].split("│")
             key, val = line[0].strip(), line[1].strip()
             if key == "train/episode/rew success/mean":
-                key = "consecutive_successes"
+                key = "fitness_score"
             elif key == "timesteps" or key == "iterations":
-                key = key + "/"
+                key = key
             elif "train/episode/rew" in key:
                 key = key.split("/")[2]
             elif key == "train/episode/episode length/mean":
-                key = "episode length"
+                key = "episode_length"
+            elif "loss" in key:
+                key = key.split("/")[0].split("mean ")[-1]
 
             run_log[key] = run_log.get(key, []) + [float(val)]
-    run_log["gpt_reward"] = []
-    run_log["gt_reward"] = []
-    if "consecutive_successes" not in run_log.keys():
-        logging.warning("'consecutive_successes' is missing in run log!")
+
+    if "fitness_score" not in run_log.keys():
+        logging.warning("'fitness_score' is missing in run log!")
         return None
-    for i in range(len(run_log["consecutive_successes"])):
-        cur_sum = 0
-        for key in run_log:
-            if "rew " in key:
-                cur_sum += run_log[key][i]
-        run_log["gpt_reward"].append(cur_sum)
-        run_log["gt_reward"].append(cur_sum)
+
     return run_log

@@ -1,4 +1,6 @@
 import re 
+import ast
+
 
 def file_to_string(filename):
     with open(filename, 'r', errors="ignore") as file:
@@ -81,7 +83,6 @@ def extract_observation_functions(filename, task='ant'):
 
     return '\n'.join(functions)
 
-import ast
 
 def get_function_signature(code_string):
     # Parse the code string into an AST
@@ -104,3 +105,28 @@ def get_function_signature(code_string):
         input_lst.append(arg.arg)
     return signature, input_lst
 
+def parse_generated_reward_functions(response_cur):
+    # Regex patterns to extract python code enclosed in LLM response
+    patterns = [
+        r'```python(.*?)```',
+        r'```(.*?)```',
+        r'"""(.*?)"""',
+        r'""(.*?)""',
+        r'"(.*?)"',
+    ]
+    for pattern in patterns:
+        code_string = re.search(pattern, response_cur, re.DOTALL)
+        if code_string is not None:
+            code_string = code_string.group(1).strip()
+            break
+    code_string = response_cur if not code_string else code_string  #type: ignore
+
+    # Remove unnecessary imports
+    lines = code_string.split("\n")
+    lines = [" "*4 + line for line in lines]
+    for i, line in enumerate(lines):
+        if line.strip().startswith("def "):
+            code_string = "\n".join(lines[i:])
+            break
+
+    return code_string
