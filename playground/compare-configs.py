@@ -4,10 +4,12 @@ from typing import Iterable, Any, Sequence
 import tyro
 import pickle
 
+
 @dataclass
 class Args:
     run_dir1: Path
     run_dir2: Path
+
 
 def load_cfg(run_cfg: Path) -> dict:
     if run_cfg.is_dir():
@@ -15,12 +17,18 @@ def load_cfg(run_cfg: Path) -> dict:
     with open(run_cfg, "rb") as f:
         return pickle.load(f)
 
+
 def compare_lists(l1, l2) -> tuple[Sequence[Any], Sequence[tuple[dict, dict]]]:
     diff = [i for i, j in zip(l1, l2) if i != j]
-    if len(l1) < len(l2): diff.extend(l2[len(l1):])
-    if len(l1) < len(l2): diff.extend(l1[len(l2):])
-    equal_dicts = [(i, j) for i, j in zip(l1, l2) if isinstance(i, dict) and isinstance(j, dict)]
+    if len(l1) < len(l2):
+        diff.extend(l2[len(l1) :])
+    if len(l1) < len(l2):
+        diff.extend(l1[len(l2) :])
+    equal_dicts = [
+        (i, j) for i, j in zip(l1, l2) if isinstance(i, dict) and isinstance(j, dict)
+    ]
     return (diff, equal_dicts)
+
 
 def compare_cfgs(cfg1: dict, cfg2: dict, level: str = "Cfg"):
     keys1 = set(cfg1.keys())
