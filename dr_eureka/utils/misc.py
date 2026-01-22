@@ -67,7 +67,7 @@ def construct_run_log(stdout_str):
             line = line[1:-1].split("│")
             key, val = line[0].strip(), line[1].strip()
             if key == "train/episode/rew success/mean":
-                key = "consecutive_successes"
+                key = "fitness_score"
             elif key == "timesteps" or key == "iterations":
                 key = key + "/"
             elif "train/episode/rew" in key:
@@ -76,13 +76,5 @@ def construct_run_log(stdout_str):
                 key = "episode length"
 
             run_log[key] = run_log.get(key, []) + [float(val)]
-    run_log["gpt_reward"] = []
-    run_log["gt_reward"] = []
-    for i in range(len(run_log["consecutive_successes"])):
-        cur_sum = 0
-        for key in run_log:
-            if "rew " in key:
-                cur_sum += run_log[key][i]
-        run_log["gpt_reward"].append(cur_sum)
-        run_log["gt_reward"].append(cur_sum)
+
     return run_log
