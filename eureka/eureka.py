@@ -1,9 +1,9 @@
 import hydra
-import numpy as np 
+import numpy as np
 import json
 import pandas as pd
 import re
-import logging 
+import logging
 import openai
 import wandb
 import omegaconf
@@ -23,6 +23,7 @@ from typing import Literal
 EUREKA_ROOT_DIR = Path.cwd()
 ROOT_DIR = EUREKA_ROOT_DIR / ".."
 
+
 def generate_samples(cfg, messages, stats):
     openai.api_key = "..."
     vllm_host = "http://0.0.0.0:8000"
@@ -31,7 +32,7 @@ def generate_samples(cfg, messages, stats):
     responses = []
 
     for s in range(cfg.sample):
-        response  = None
+        response = None
         for attempt in range(3):
             try:
                 response = openai.ChatCompletion.create(
@@ -47,25 +48,39 @@ def generate_samples(cfg, messages, stats):
             logging.info("Code terminated due to too many failed attempts!")
             exit()
 
-        responses.extend(response["choices"])  #type: ignore
-        stats["prompt_tokens"].append( response["usage"]["prompt_tokens"] ) #type: ignore
-        stats["completion_tokens"].append( response["usage"]["completion_tokens"] ) #type: ignore
-        stats["total_tokens"].append( response["usage"]["total_tokens"] ) #type: ignore
+        responses.extend(response["choices"])  # type: ignore
+        stats["prompt_tokens"].append(response["usage"]["prompt_tokens"])  # type: ignore
+        stats["completion_tokens"].append(response["usage"]["completion_tokens"])  # type: ignore
+        stats["total_tokens"].append(response["usage"]["total_tokens"])  # type: ignore
 
     # split thinking and non thinking content
     for i, response in enumerate(responses):
         text = response["message"]["content"]
         thinking_content = re.search(r"<think>(.*?)</think>", text, flags=re.DOTALL)
-        response["message"]["thinking"] = thinking_content.group(1) if thinking_content else "None"
-        response["message"]["answer"] = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-        if (len(response["message"]["thinking"])):
-            res = requests.post(f"{vllm_host}/tokenize", headers={"Content-Type": "application/json"}, json={"model": f"{cfg.model_path}{cfg.model}", "prompt": response["message"]["answer"]})
-            stats["thinking_tokens"].append( stats["completion_tokens"][i] - res.json()["count"] )
-            stats["answer_tokens"].append( res.json()["count"] )
+        response["message"]["thinking"] = (
+            thinking_content.group(1) if thinking_content else "None"
+        )
+        response["message"]["answer"] = re.sub(
+            r"<think>.*?</think>", "", text, flags=re.DOTALL
+        )
+        if len(response["message"]["thinking"]):
+            res = requests.post(
+                f"{vllm_host}/tokenize",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "model": f"{cfg.model_path}{cfg.model}",
+                    "prompt": response["message"]["answer"],
+                },
+            )
+            stats["thinking_tokens"].append(
+                stats["completion_tokens"][i] - res.json()["count"]
+            )
+            stats["answer_tokens"].append(res.json()["count"])
         else:
-            stats["thinking_tokens"].append( 0 )
-            stats["answer_tokens"].append( stats["completion_tokens"][i] )
+            stats["thinking_tokens"].append(0)
+            stats["answer_tokens"].append(stats["completion_tokens"][i])
     return responses, stats
+
 
 def add_failure_values(stats):
     stats["execution"].append(0)
@@ -81,7 +96,7 @@ def add_failure_values(stats):
     stats["reward_total_min"].append(0)
     stats["num_reward_functions"].append(0)
     stats["reward_names"].append([])
-    #"reward_correlation": [],  # not implemented
+    # "reward_correlation": [],  # not implemented
     return stats
 
 
@@ -119,7 +134,7 @@ def main(cfg):
             project="master-thesis",
             name=f"{cfg.model}_{TIMESTAMP}",
             group="eureka",
-            config=config  # type: ignore
+            config=config,  # type: ignore
         )
 
     env_name = cfg.env.env_name.lower()
@@ -130,23 +145,30 @@ def main(cfg):
     task_rew_code_string = file_to_string(task_rew_file)  # type: ignore
     task_obs_code_string = file_to_string(task_obs_file)  # type: ignore
     no_think_flag = ""
-    if not cfg.thinking_enabled: no_think_flag = " /no_think"
+    if not cfg.thinking_enabled:
+        no_think_flag = " /no_think"
 
     # Loading all text prompts
     prompt_dir = EUREKA_ROOT_DIR / "prompts"
-    initial_system = file_to_string( prompt_dir / "initial_system.txt" )  # type: ignore
-    code_output_tip = file_to_string( prompt_dir / "code_output_tip.txt" )  # type: ignore
-    code_feedback = file_to_string( prompt_dir / "code_feedback.txt" )  # type: ignore
-    initial_user = file_to_string( prompt_dir / "initial_user.txt" )  # type: ignore
-    reward_signature = file_to_string(prompt_dir/ "reward_signatures" / f"{env_name}.txt")  # type: ignore
-    policy_feedback = file_to_string( prompt_dir/ "policy_feedback.txt")  # type: ignore
+    initial_system = file_to_string(prompt_dir / "initial_system.txt")  # type: ignore
+    code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")  # type: ignore
+    code_feedback = file_to_string(prompt_dir / "code_feedback.txt")  # type: ignore
+    initial_user = file_to_string(prompt_dir / "initial_user.txt")  # type: ignore
+    reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")  # type: ignore
+    policy_feedback = file_to_string(prompt_dir / "policy_feedback.txt")  # type: ignore
     execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")  # type: ignore
 
-    initial_system = initial_system.format(task_reward_signature_string=reward_signature) + code_output_tip + no_think_flag
-    initial_user = initial_user.format(task_obs_code_string=task_obs_code_string, task_description=cfg.env.description)
+    initial_system = (
+        initial_system.format(task_reward_signature_string=reward_signature)
+        + code_output_tip
+        + no_think_flag
+    )
+    initial_user = initial_user.format(
+        task_obs_code_string=task_obs_code_string, task_description=cfg.env.description
+    )
     messages = [
         {"role": "system", "content": initial_system},
-        {"role": "user", "content": initial_user}
+        {"role": "user", "content": initial_user},
     ]
 
     # Eureka generation loop
@@ -163,7 +185,6 @@ def main(cfg):
             "fitness_score_max": [],
             "fitness_score_mean": [],
             "fitness_score_min": [],
-            #"reward_correlation": [],  # not implemented
             "episode_length": [],
             "reward_total_max": [],
             "reward_total_mean": [],
@@ -183,17 +204,21 @@ def main(cfg):
 
             code_string = parse_generated_reward_functions(sample["message"]["answer"])  # type: ignore
             # Add the Eureka Reward Signature to the environment code
-            cur_task_rew_code_string = task_rew_code_string.replace("# INSERT EUREKA REWARD HERE", code_string)
-            with open(output_file, 'w') as file: # TODO maybe adapt for concurrency
-                file.writelines(cur_task_rew_code_string + '\n')
+            cur_task_rew_code_string = task_rew_code_string.replace(
+                "# INSERT EUREKA REWARD HERE", code_string
+            )
+            with open(output_file, "w") as file:  # TODO maybe adapt for concurrency
+                file.writelines(cur_task_rew_code_string + "\n")
 
             ### saving messages, llm response and generated reward code
-            with open(f"chats/iteration-{iter}_sample-{sample_idx}.md", 'w') as file:
+            with open(f"chats/iteration-{iter}_sample-{sample_idx}.md", "w") as file:
                 for message in messages:
                     file.write(f"\n\n## {message['role']}:\n\n")
                     file.write(f"{message['content']}\n")
                 file.write(f"\n\n ---------- \n## {sample['message']['role']}:\n\n")
-                file.write(f'***Thinking:***\n\n{sample["message"]["thinking"]}\n\n***Final Answer:***\n\n{sample["message"]["answer"]}')
+                file.write(
+                    f'***Thinking:***\n\n{sample["message"]["thinking"]}\n\n***Final Answer:***\n\n{sample["message"]["answer"]}'
+                )
             shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
             ###
 
@@ -202,18 +227,24 @@ def main(cfg):
             # TODO support parallel executions again
 
             rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.txt"
-            with open(rl_logpath, 'w') as f:
+            with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
                 command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
-                evaluation_runs.append( subprocess.Popen(command, stdout=f, stderr=f) )
+                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
 
             # needed so that rewards are not overridden
-            block_until_training(rl_logpath, success_keyword=cfg.env.success_keyword, failure_keyword=cfg.env.failure_keyword,  # type: ignore
-                                 log_status=True, iter_num=iter, response_id=sample_idx)
+            block_until_training(
+                rl_logpath,
+                success_keyword=cfg.env.success_keyword,
+                failure_keyword=cfg.env.failure_keyword,  # type: ignore
+                log_status=True,
+                iter_num=iter,
+                response_id=sample_idx,
+            )
             block_until_queue_finished(evaluation_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
         # Gather evaluation results and construct reward reflection
@@ -222,31 +253,35 @@ def main(cfg):
             evaluation_run.communicate()
             rl_logpath = f"logs/iteration-{iter}_sample-{response_id}.txt"
             try:
-                with open(rl_logpath, 'r') as f:
+                with open(rl_logpath, "r") as f:
                     stdout_str = f.read()
             except:
                 # TODO bugfixing by LLM not implemented
-                content = execution_error_feedback.format(traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!")
+                content = execution_error_feedback.format(
+                    traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!"
+                )
                 content += code_output_tip
                 contents.append(content)
                 add_failure_values(stats)
                 logging.error(f"ERROR: Could not open/read {rl_logpath}")
                 continue
 
-            content = ''
+            content = ""
             traceback_msg = filter_traceback(stdout_str)  # type: ignore
 
-            if traceback_msg == '':
+            if traceback_msg == "":
                 stats["execution"].append(1)
                 run_log = construct_run_log(stdout_str)  # type: ignore
                 if run_log is None:
-                    logging.warning(f"WARNING: Stopped execution without error message: Skipping Run {response_id}!")
+                    logging.warning(
+                        f"WARNING: Stopped execution without error message: Skipping Run {response_id}!"
+                    )
                     contents.append("Unknown error")
                     add_failure_values(stats)
                     continue
 
                 # TODO CHECK!
-                logged_train_iterations = np.array(run_log['iterations']).shape[0]
+                logged_train_iterations = np.array(run_log["iterations"]).shape[0]
                 step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
                 epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
                 logging.info(f"{logged_train_iterations=}; {step_size=}; {epoch_freq=}")
@@ -259,7 +294,9 @@ def main(cfg):
                 num_rewards = 0
                 for metric in sorted(run_log.keys()):
                     if metric not in ["timesteps", "iterations"]:
-                        metric_cur = ['{:.2f}'.format(x) for x in run_log[metric][::step_size]]
+                        metric_cur = [
+                            "{:.2f}".format(x) for x in run_log[metric][::step_size]
+                        ]
                         metric_cur_max = max(run_log[metric])
                         metric_cur_mean = sum(run_log[metric]) / len(run_log[metric])
                         metric_cur_min = min(run_log[metric])
@@ -288,7 +325,7 @@ def main(cfg):
                             metrics[metric] = run_log[metric]
                             continue
 
-                        content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f}  \n"                    
+                        content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f}  \n"
 
                 content += code_feedback
                 stats["num_reward_functions"].append(num_rewards)
@@ -297,7 +334,9 @@ def main(cfg):
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)
-                logging.warning(f"WARNING: Failed code execution of {response_id}: {traceback_msg}")
+                logging.warning(
+                    f"WARNING: Failed code execution of {response_id}: {traceback_msg}"
+                )
                 content += execution_error_feedback.format(traceback_msg=traceback_msg)
             content += code_output_tip
             contents.append(content)
@@ -320,15 +359,25 @@ def main(cfg):
             maximum_sample = best_sample_idx
             maximum_iteration = iter
 
-        logging.info(f"Iteration {iter}: Max Fitness Score: {best_fitness_score:.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {maximum_fitness_score:.2f}")
+        logging.info(
+            f"Iteration {iter}: Max Fitness Score: {best_fitness_score:.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {maximum_fitness_score:.2f}"
+        )
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
 
         if len(messages) == 2:
-            messages += [{"role": "assistant", "content": samples[best_sample_idx]["message"]["content"]}]
+            messages += [
+                {
+                    "role": "assistant",
+                    "content": samples[best_sample_idx]["message"]["content"],
+                }
+            ]
             messages += [{"role": "user", "content": best_content}]
         else:
             assert len(messages) == 4
-            messages[-2] = {"role": "assistant", "content": samples[best_sample_idx]["message"]["content"]}
+            messages[-2] = {
+                "role": "assistant",
+                "content": samples[best_sample_idx]["message"]["content"],
+            }
             messages[-1] = {"role": "user", "content": best_content}
 
     ###
@@ -343,15 +392,21 @@ def main(cfg):
     ###
     if maximum_fitness_score < 0:
         logging.info("All iterations of code generation failed, aborting...")
-        logging.info("Please double check the output iteration-*_sample-*.txt files for repeating errors!")
+        logging.info(
+            "Please double check the output iteration-*_sample-*.txt files for repeating errors!"
+        )
         exit()
-    max_reward_code_path = Path(f"rewards/iteration-{maximum_iteration}_sample-{maximum_sample}.py")
-    logging.info(f"\n Task: {cfg.env.task}, \n Max Training Fitness Score {maximum_fitness_score:.2f} \n Best Reward Code Path: {str(max_reward_code_path)}")
+    max_reward_code_path = Path(
+        f"rewards/iteration-{maximum_iteration}_sample-{maximum_sample}.py"
+    )
+    logging.info(
+        f"\n Task: {cfg.env.task}, \n Max Training Fitness Score {maximum_fitness_score:.2f} \n Best Reward Code Path: {str(max_reward_code_path)}"
+    )
 
     ### Defaults to best reward configuration
     best_reward = file_to_string(max_reward_code_path)  # type: ignore
-    with open(output_file, 'w') as file:
-        file.writelines(best_reward + '\n')
+    with open(output_file, "w") as file:
+        file.writelines(best_reward + "\n")
 
     ### Get run directory of best-performing policy
     max_reward_log_path = Path("logs") / f"{max_reward_code_path.stem}.txt"
@@ -360,7 +415,9 @@ def main(cfg):
     for line in lines:
         if line.startswith("Dashboard: "):
             run_dir = line.split(": ")[1].strip()
-            run_dir = run_dir.replace("http://app.dash.ml/", f"{ROOT_DIR}/{env_name}/runs/")
+            run_dir = run_dir.replace(
+                "http://app.dash.ml/", f"{ROOT_DIR}/{env_name}/runs/"
+            )
             logging.info("Best policy run directory: " + run_dir)
 
     ### graphics
@@ -368,48 +425,180 @@ def main(cfg):
     full_stats["version"] = cfg.model
     execution_rate_df = plots_plus.utils.to_execution_rates(full_stats)
     execution_rate_df["version"] = cfg.model
-    plots_plus.lineplot(execution_rate_df, x="iteration", y="execution_rate", hue="version", colorpalette=plots_plus.colors.LLM_COLOR_MAP, ylim=(-0.1, 1.1), filepath=graphics_dir / "execution_rates.png")
+    plots_plus.lineplot(
+        execution_rate_df,
+        x="iteration",
+        y="execution_rate",
+        hue="version",
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        ylim=(-0.1, 1.1),
+        filepath=graphics_dir / "execution_rates.png",
+    )
 
     # use only successful evaluations
-    full_stats: pd.DataFrame = full_stats[full_stats["execution"] == 1]  #type: ignore (vscode bug)
-    plots_plus.scatteredlineplot(full_stats, x="iteration", y="fitness_score_max", hue="version", filepath=graphics_dir / "fitness_score_max.png")
-    plots_plus.scatteredlineplot(full_stats, x="iteration", y="reward_total_max", hue="version", filepath=graphics_dir / "reward_total_max.png")
-    plots_plus.scatteredlineplot(full_stats, x="iteration", y="episode_length", hue="version", filepath=graphics_dir / "episode_length.png")
-    plots_plus.scatteredlineplot(full_stats, x="iteration", y="num_reward_functions", hue="version", ylim=(0, 12), filepath=graphics_dir / "num_reward_functions.png")
+    full_stats: pd.DataFrame = full_stats[full_stats["execution"] == 1]  # type: ignore (vscode bug)
+    plots_plus.scatteredlineplot(
+        full_stats,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        filepath=graphics_dir / "fitness_score_max.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_stats,
+        x="iteration",
+        y="reward_total_max",
+        hue="version",
+        filepath=graphics_dir / "reward_total_max.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_stats,
+        x="iteration",
+        y="episode_length",
+        hue="version",
+        filepath=graphics_dir / "episode_length.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_stats,
+        x="iteration",
+        y="num_reward_functions",
+        hue="version",
+        ylim=(0, 12),
+        filepath=graphics_dir / "num_reward_functions.png",
+    )
 
-    tokens = plots_plus.utils.rotate_df(full_stats, "iteration", ["prompt_tokens", "completion_tokens", "total_tokens", "thinking_tokens", "answer_tokens"], "tokens")
-    plots_plus.lineplot(tokens, x="iteration", y="tokens", hue="type", hue_order=plots_plus.colors.TOKEN_ORDER, colorpalette=plots_plus.colors.TOKEN_COLOR_MAP, filepath=graphics_dir / "tokens.png")
+    tokens = plots_plus.utils.rotate_df(
+        full_stats,
+        "iteration",
+        [
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "thinking_tokens",
+            "answer_tokens",
+        ],
+        "tokens",
+    )
+    plots_plus.lineplot(
+        tokens,
+        x="iteration",
+        y="tokens",
+        hue="type",
+        hue_order=plots_plus.colors.TOKEN_ORDER,
+        colorpalette=plots_plus.colors.TOKEN_COLOR_MAP,
+        filepath=graphics_dir / "tokens.png",
+    )
 
-    metrics_df = plots_plus.utils.convert_metric_series(full_metrics, cfg.env.train_iterations)
+    metrics_df = plots_plus.utils.convert_metric_series(
+        full_metrics, cfg.env.train_iterations
+    )
     losses_df: pd.DataFrame = metrics_df[metrics_df["metric_name"].str.match(".*loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
-    logging.info(f'Loss df cols and values: {losses_df.columns}, {losses_df["loss"].drop_duplicates()}')
-    plots_plus.gridlineplot(losses_df, x="training_iteration", y="value", hue="loss", axes="iteration", colorpalette=plots_plus.colors.REWARD_COLOR_MAP, filepath=graphics_dir / "losses_per_iter.png")
-    plots_plus.gridlineplot(losses_df, x="training_iteration", y="value", hue="iteration", axes="loss", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "losses_per_type.png")
+    logging.info(
+        f'Loss df cols and values: {losses_df.columns}, {losses_df["loss"].drop_duplicates()}'
+    )
+    plots_plus.gridlineplot(
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="loss",
+        axes="iteration",
+        colorpalette=plots_plus.colors.REWARD_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_iter.png",
+    )
+    plots_plus.gridlineplot(
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="loss",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_type.png",
+    )
 
     reward_components_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score", "total"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
-    logging.info(f'Reward df cols and values: {reward_components_df.columns}, {reward_components_df["reward"].drop_duplicates()}')
-    plots_plus.gridlineplot(reward_components_df, x="training_iteration", y="value", hue="reward", axes="iteration", colorpalette=plots_plus.colors.REWARD_COLOR_MAP, filepath=graphics_dir / "rewards_per_iter.png")
-    plots_plus.gridlineplot(reward_components_df, x="training_iteration", y="value", hue="iteration", axes="reward", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "rewards_per_type.png")
+    logging.info(
+        f'Reward df cols and values: {reward_components_df.columns}, {reward_components_df["reward"].drop_duplicates()}'
+    )
+    plots_plus.gridlineplot(
+        reward_components_df,
+        x="training_iteration",
+        y="value",
+        hue="reward",
+        axes="iteration",
+        colorpalette=plots_plus.colors.REWARD_COLOR_MAP,
+        filepath=graphics_dir / "rewards_per_iter.png",
+    )
+    plots_plus.gridlineplot(
+        reward_components_df,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="reward",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "rewards_per_type.png",
+    )
 
     rew_total_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "total"].rename({"value": "total_reward"}, axis=1)  # type: ignore
-    plots_plus.multilineplot(rew_total_df, x="training_iteration", y="total_reward", lines="sample", hue="iteration", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "total_reward.png")
+    plots_plus.multilineplot(
+        rew_total_df,
+        x="training_iteration",
+        y="total_reward",
+        lines="sample",
+        hue="iteration",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "total_reward.png",
+    )
     fitness_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "fitness_score"].rename({"value": "fitness_score"}, axis=1)  # type: ignore
-    plots_plus.multilineplot(fitness_score_df, x="training_iteration", y="fitness_score", lines="sample", hue="iteration", colorpalette=plots_plus.colors.ITERATION_COLOR_MAP, filepath=graphics_dir / "fitness_score.png")
+    plots_plus.multilineplot(
+        fitness_score_df,
+        x="training_iteration",
+        y="fitness_score",
+        lines="sample",
+        hue="iteration",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "fitness_score.png",
+    )
 
     # correlations
-    corr_methods: List[Literal["spearman", "kendall", "pearson"]] = ["spearman", "kendall", "pearson"]
+    corr_methods: List[Literal["spearman", "kendall", "pearson"]] = [
+        "spearman",
+        "kendall",
+        "pearson",
+    ]
     rewards_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
     base_metric = "fitness_score"
     base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
     for corr_method in corr_methods:
-        correlations_df = plots_plus.utils.get_correlation_df(base_df, rewards_df, "reward", corr_method)
-        plots_plus.gridlineplot(correlations_df, x="iteration", y=f"{corr_method}_correlation", hue="samples", axes="reward", colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP, filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png", ylim=(-1.1, 1.1))
+        correlations_df = plots_plus.utils.get_correlation_df(
+            base_df, rewards_df, "reward", corr_method
+        )
+        plots_plus.gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
 
     base_metric = "value loss"
     base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
     for corr_method in corr_methods:
-        correlations_df = plots_plus.utils.get_correlation_df(base_df, rewards_df, "reward", corr_method)
-        plots_plus.gridlineplot(correlations_df, x="iteration", y=f"{corr_method}_correlation", hue="samples", axes="reward", colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP, filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png", ylim=(-1.1, 1.1))
+        correlations_df = plots_plus.utils.get_correlation_df(
+            base_df, rewards_df, "reward", corr_method
+        )
+        plots_plus.gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
 
 
 if __name__ == "__main__":

@@ -10,53 +10,78 @@ from utils.extract_task_code import file_to_string  # type: ignore
 
 def set_freest_gpu():
     freest_gpu = get_freest_gpu()
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(freest_gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(freest_gpu)
+
 
 def get_freest_gpu():
     # Note: if this line breaks, you can provide an absolute path to gpustat instead
-    sp = subprocess.Popen(['gpustat', '--json'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sp = subprocess.Popen(
+        ["gpustat", "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     out_str, _ = sp.communicate()
-    gpustats = json.loads(out_str.decode('utf-8'))
-    freest_gpu = min(gpustats['gpus'], key=lambda x: x['memory.used'])
-    return freest_gpu['index']
+    gpustats = json.loads(out_str.decode("utf-8"))
+    freest_gpu = min(gpustats["gpus"], key=lambda x: x["memory.used"])
+    return freest_gpu["index"]
+
 
 def filter_traceback(s):
-    lines = s.split('\n')
+    lines = s.split("\n")
     filtered_lines = []
     for i, line in enumerate(lines):
-        if line.startswith('Traceback'):
+        if line.startswith("Traceback"):
             for j in range(i, len(lines)):
                 if "Set the environment variable HYDRA_FULL_ERROR=1" in lines[j]:
                     break
                 filtered_lines.append(lines[j])
-            return '\n'.join(filtered_lines)
-    return ''  # Return an empty string if no Traceback is found
+            return "\n".join(filtered_lines)
+    return ""  # Return an empty string if no Traceback is found
 
-def block_until_training(rl_filepath, success_keyword, failure_keyword, log_status=False, iter_num=-1, response_id=-1):
+
+def block_until_training(
+    rl_filepath,
+    success_keyword,
+    failure_keyword,
+    log_status=False,
+    iter_num=-1,
+    response_id=-1,
+):
     # Ensure that the RL training has started before moving on
     while True:
         rl_log = file_to_string(rl_filepath)
         if "running" in rl_log or "Traceback" in rl_log:
             if log_status and "running" in rl_log:
-                logging.info(f"Iteration {iter_num}: Code Run {response_id} successfully training!")
+                logging.info(
+                    f"Iteration {iter_num}: Code Run {response_id} successfully training!"
+                )
             if log_status and "Traceback" in rl_log:
-                logging.info(f"Iteration {iter_num}: Code Run {response_id} execution error!")
+                logging.info(
+                    f"Iteration {iter_num}: Code Run {response_id} execution error!"
+                )
             break
 
-def block_until_queue_finished(processes: List[subprocess.Popen], num_gpus: int, processes_per_gpu: int, check_frequency: int = 60):
+
+def block_until_queue_finished(
+    processes: List[subprocess.Popen],
+    num_gpus: int,
+    processes_per_gpu: int,
+    check_frequency: int = 60,
+):
     while True:
         num_running = 0
         for p in processes:
             if p.poll() == None:
                 num_running += 1
         if num_running < num_gpus * processes_per_gpu:
-            logging.info(f"Process queue open: {num_running} of {num_gpus * processes_per_gpu} running. Continue.")
+            logging.info(
+                f"Process queue open: {num_running} of {num_gpus * processes_per_gpu} running. Continue."
+            )
             break
         time.sleep(check_frequency)
 
+
 def construct_run_log(stdout_str):
     run_log = {}
-    lines: List[str] = stdout_str.split('\n')
+    lines: List[str] = stdout_str.split("\n")
     for i, line in enumerate(lines):
         if line.startswith("│") and line.endswith("│"):
             line = line[1:-1].split("│")
