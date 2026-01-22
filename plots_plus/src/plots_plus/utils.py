@@ -22,6 +22,7 @@ def clean_df_labels(df: pd.DataFrame) -> pd.DataFrame:
         name_mapping[label] = clean_variable(label)
     return df.rename(name_mapping, axis=1)
 
+
 def clean_variable(var_name: str) -> str:
     """Capitalizes words and removes underscores
 
@@ -32,6 +33,7 @@ def clean_variable(var_name: str) -> str:
         str: Formatted name
     """
     return var_name.replace("_", " ").title()
+
 
 def to_execution_rates(df: pd.DataFrame) -> pd.DataFrame:
     """Converts binary execution success criterion into percentage (per iteration)
@@ -44,6 +46,7 @@ def to_execution_rates(df: pd.DataFrame) -> pd.DataFrame:
     """
     execution_rates = df.groupby("iteration", as_index=False)["execution"].mean()
     return pd.DataFrame(execution_rates).rename({"execution": "execution_rate"}, axis=1)
+
 
 def load_metric_series(filepath: Path, train_iterations: int) -> pd.DataFrame:
     """Loads and converts json reward/fitness series to pandas df
@@ -58,7 +61,8 @@ def load_metric_series(filepath: Path, train_iterations: int) -> pd.DataFrame:
     with open(filepath, "r") as f:
         rewards = json.load(f)
         return convert_metric_series(rewards, train_iterations)
-    
+
+
 def rotate_df(df: pd.DataFrame, x: str, ys: List[str], ylabel: str) -> pd.DataFrame:
     """Rotates df und returns df with x, "type", and ylabel column
     Type column is cleaned with clean_variable()
@@ -78,6 +82,7 @@ def rotate_df(df: pd.DataFrame, x: str, ys: List[str], ylabel: str) -> pd.DataFr
         partial_df["type"] = clean_variable(y)
         new_df = pd.concat([new_df, partial_df])
     return new_df
+
 
 def convert_metric_series(series: List, train_iterations: int) -> pd.DataFrame:
     """Converts reward series json data into dataframe
@@ -102,7 +107,9 @@ def convert_metric_series(series: List, train_iterations: int) -> pd.DataFrame:
             for key, values in sample.items():
                 num_entries = len(values)
                 if not iteration_interval:
-                    iteration_interval = list(np.arange(0, train_iterations, train_iterations // num_entries))
+                    iteration_interval = list(
+                        np.arange(0, train_iterations, train_iterations // num_entries)
+                    )
 
                 df_struct["value"].extend(values)
                 df_struct["training_iteration"].extend(iteration_interval)
@@ -110,16 +117,27 @@ def convert_metric_series(series: List, train_iterations: int) -> pd.DataFrame:
                 df_struct["sample"].extend([s_idx for _ in values])
                 df_struct["metric_name"].extend([key for _ in values])
 
-    df = pd.DataFrame(df_struct).astype({
-        "sample": int,
-        "iteration": int,
-        "metric_name": str,
-        "value": float,
-        "training_iteration": int
-    })
+    df = pd.DataFrame(df_struct).astype(
+        {
+            "sample": int,
+            "iteration": int,
+            "metric_name": str,
+            "value": float,
+            "training_iteration": int,
+        }
+    )
     return df
 
-def axgrid(nrows: int, ncols: int, row_height: float = 5, col_width: float = 5, legend_height: float = 0.75, rel_hspace: float = 0.35, rel_wspace: float = 0.21) -> Tuple:
+
+def axgrid(
+    nrows: int,
+    ncols: int,
+    row_height: float = 5,
+    col_width: float = 5,
+    legend_height: float = 0.75,
+    rel_hspace: float = 0.35,
+    rel_wspace: float = 0.21,
+) -> Tuple:
     """Creates a subplot grid with additional space on top reserved for a figure legend
 
     Args:
@@ -141,19 +159,21 @@ def axgrid(nrows: int, ncols: int, row_height: float = 5, col_width: float = 5, 
         height_ratios=[legend_height] + [row_height] * nrows,
         hspace=rel_hspace,
         wspace=rel_wspace,
-        figure=fig
+        figure=fig,
     )
 
     legend_ax = fig.add_subplot(gs[0, :])
     legend_ax.axis("off")
-    axs = [
-        fig.add_subplot(gs[r + 1, c])
-        for r in range(nrows)
-        for c in range(ncols)
-    ]
+    axs = [fig.add_subplot(gs[r + 1, c]) for r in range(nrows) for c in range(ncols)]
     return fig, axs, legend_ax
 
-def get_correlation_df(base_df: pd.DataFrame, metrics_df: pd.DataFrame, column: str, method: Literal["pearson", "kendall", "spearman"]) -> pd.DataFrame:
+
+def get_correlation_df(
+    base_df: pd.DataFrame,
+    metrics_df: pd.DataFrame,
+    column: str,
+    method: Literal["pearson", "kendall", "spearman"],
+) -> pd.DataFrame:
     """Computes iteration-wise correlations of all samples and only on best sample
     result dataframes have the following columns: {method}_correlation, iteration, {column}, samples
     samples column has options: all, best
@@ -174,26 +194,41 @@ def get_correlation_df(base_df: pd.DataFrame, metrics_df: pd.DataFrame, column: 
         base_iterations = base_df.groupby("iteration", as_index=False)
         for iteration, base_iteration_df in base_iterations:
             corr = compute_correlation(base_iteration_df, metric_df, method=method)
-            correlations.append({
-                f"{method}_correlation": corr,
-                "iteration": iteration,
-                column: name,
-                "samples": "all"
-            })
+            correlations.append(
+                {
+                    f"{method}_correlation": corr,
+                    "iteration": iteration,
+                    column: name,
+                    "samples": "all",
+                }
+            )
 
             best_idx = base_iteration_df["value"].idxmax()
             best_sample = base_df.loc[[best_idx]]["sample"].iloc[0]
-            corr_best = compute_correlation(base_iteration_df[base_iteration_df["sample"] == best_sample], metric_df, method=method)
-            correlations.append({
-                f"{method}_correlation": corr_best,
-                "iteration": iteration,
-                column: name,
-                "samples": "best"
-            })
+            corr_best = compute_correlation(
+                base_iteration_df[base_iteration_df["sample"] == best_sample],
+                metric_df,
+                method=method,
+            )
+            correlations.append(
+                {
+                    f"{method}_correlation": corr_best,
+                    "iteration": iteration,
+                    column: name,
+                    "samples": "best",
+                }
+            )
 
     return pd.DataFrame(correlations)
 
-def compute_correlation(left: pd.DataFrame, right: pd.DataFrame, column: str = "value", on: Union[str, Iterable[str]] = ["iteration", "sample", "training_iteration"], method: Literal["pearson", "kendall", "spearman"] = "spearman") -> float:
+
+def compute_correlation(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    column: str = "value",
+    on: Union[str, Iterable[str]] = ["iteration", "sample", "training_iteration"],
+    method: Literal["pearson", "kendall", "spearman"] = "spearman",
+) -> float:
     """Computes Correlation
 
     Args:
@@ -209,6 +244,7 @@ def compute_correlation(left: pd.DataFrame, right: pd.DataFrame, column: str = "
     merged = pd.merge(left, right, on=on, suffixes=["_base", "_reward"])
     return merged[f"{column}_base"].corr(merged[f"{column}_reward"], method=method)
 
+
 # control package visibility
 __all__ = [
     "axgrid",
@@ -221,5 +257,7 @@ __all__ = [
     "get_correlation_df",
     "compute_correlation",
 ]
+
+
 def __dir__():
     return __all__

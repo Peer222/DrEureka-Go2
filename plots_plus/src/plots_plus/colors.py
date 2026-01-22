@@ -1,18 +1,32 @@
 class Color:
-    BLACK = (0,0,0)
-    BLUE = (55/256, 88/256, 136/256)
-    LIGHT_BLUE = (137/256, 173/256, 220/256)
-    RED = (161/256, 34/256, 0)
-    GREEN = (141/256, 201/256, 20/256) #(0, 124/256, 6/256)
-    YELLOW = (227/256, 193/256, 0)
-    LIGHT_GREY = (240/256, 240/256, 240/256)
-    ORANGE = (247/256, 110/256, 66/256)
-    GREY = (200/256, 200/256, 200/256)
+    BLACK = (0, 0, 0)
+    BLUE = (55 / 256, 88 / 256, 136 / 256)
+    LIGHT_BLUE = (137 / 256, 173 / 256, 220 / 256)
+    RED = (161 / 256, 34 / 256, 0)
+    GREEN = (141 / 256, 201 / 256, 20 / 256)  # (0, 124/256, 6/256)
+    YELLOW = (227 / 256, 193 / 256, 0)
+    LIGHT_GREY = (240 / 256, 240 / 256, 240 / 256)
+    ORANGE = (247 / 256, 110 / 256, 66 / 256)
+    GREY = (200 / 256, 200 / 256, 200 / 256)
 
-LLM_COLOR_MAP = [Color.BLUE, Color.YELLOW, Color.RED, Color.GREEN]  # TODO check and extend
+
+LLM_COLOR_MAP = [
+    Color.BLUE,
+    Color.YELLOW,
+    Color.RED,
+    Color.GREEN,
+]  # TODO check and extend
 TOKEN_COLOR_MAP = [Color.BLUE, Color.YELLOW, Color.RED, Color.GREEN, Color.BLACK]
 ITERATION_COLOR_MAP = [Color.YELLOW, Color.GREY, Color.BLUE]
 CORRELATION_COLOR_MAP = [Color.BLUE, Color.YELLOW]
-REWARD_COLOR_MAP = [Color.BLUE, Color.YELLOW, Color.RED, Color.GREEN, Color.LIGHT_BLUE, Color.BLACK, Color.ORANGE]
+REWARD_COLOR_MAP = [
+    Color.BLUE,
+    Color.YELLOW,
+    Color.RED,
+    Color.GREEN,
+    Color.LIGHT_BLUE,
+    Color.BLACK,
+    Color.ORANGE,
+]
 
-LLM_ORDER = ["Qwen3-32B-AWQ"] # TODO extend and apply
+LLM_ORDER = ["Qwen3-32B-AWQ"]  # TODO extend and apply

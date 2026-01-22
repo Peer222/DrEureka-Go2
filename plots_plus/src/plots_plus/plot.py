@@ -13,6 +13,7 @@ import seaborn as sns
 from .utils import *
 from .colors import *
 
+
 def plot(filepath: Optional[Path] = None) -> None:
     """Shows figure or saves figure if filepath is specified
 
@@ -25,21 +26,35 @@ def plot(filepath: Optional[Path] = None) -> None:
     else:
         if not filepath.parent.is_dir():
             filepath.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(fname=filepath, dpi=300, bbox_inches='tight')
+        plt.savefig(fname=filepath, dpi=300, bbox_inches="tight")
         plt.figure(clear=True)
         plt.close()
 
-def scatterplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, colorpalette: List = LLM_COLOR_MAP, filepath: Optional[Path]=None, title: Optional[str]=None, ylim: Optional[Tuple[float, float]] = None, xlim: Optional[Tuple[float, float]] = None):
+
+def scatterplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: Optional[str] = None,
+    colorpalette: List = LLM_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
+    xlim: Optional[Tuple[float, float]] = None,
+):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
-    if hue: hue = clean_variable(hue)
+    if hue:
+        hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
     ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
-    if xlim: ax.set_xlim(*xlim)
-    if ylim: ax.set_ylim(*ylim)
+    if xlim:
+        ax.set_xlim(*xlim)
+    if ylim:
+        ax.set_ylim(*ylim)
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -47,22 +62,36 @@ def scatterplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, col
     # for eval iterations. Otherwise has to be adapted
     ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
-    if title: plt.title(title)
+    if title:
+        plt.title(title)
     plt.legend()
     plot(filepath)
 
 
-def lineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, colorpalette: List = ITERATION_COLOR_MAP, filepath: Optional[Path]=None, title: Optional[str]=None, ylim: Optional[Tuple[float, float]] = None, xlim: Optional[Tuple[float, float]] = None):
+def lineplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: Optional[str] = None,
+    colorpalette: List = ITERATION_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
+    xlim: Optional[Tuple[float, float]] = None,
+):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
-    if hue: hue = clean_variable(hue)
+    if hue:
+        hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
     ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
-    if xlim: ax.set_xlim(*xlim)
-    if ylim: ax.set_ylim(*ylim)
+    if xlim:
+        ax.set_xlim(*xlim)
+    if ylim:
+        ax.set_ylim(*ylim)
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -71,23 +100,37 @@ def lineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, colorp
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
-    if title: plt.title(title)
+    if title:
+        plt.title(title)
     plt.legend()
     plot(filepath)
 
 
-def scatteredlineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, colorpalette: List = LLM_COLOR_MAP, filepath: Optional[Path]=None, title: Optional[str]=None, ylim: Optional[Tuple[float, float]] = None, xlim: Optional[Tuple[float, float]] = None):
+def scatteredlineplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: Optional[str] = None,
+    colorpalette: List = LLM_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
+    xlim: Optional[Tuple[float, float]] = None,
+):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
-    if hue: hue = clean_variable(hue)
+    if hue:
+        hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
     ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, legend=False)
     ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
-    if xlim: ax.set_xlim(*xlim)
-    if ylim: ax.set_ylim(*ylim)
+    if xlim:
+        ax.set_xlim(*xlim)
+    if ylim:
+        ax.set_ylim(*ylim)
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -96,17 +139,30 @@ def scatteredlineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = Non
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
-    if title: plt.title(title)
+    if title:
+        plt.title(title)
     plot(filepath)
 
 
-def multilineplot(df: pd.DataFrame, x: str, y: str, lines: str, hue: Optional[str] = None, colorpalette: List = ITERATION_COLOR_MAP, filepath: Optional[Path]=None, title: Optional[str]=None, ylim: Optional[Tuple[float, float]] = None, xlim: Optional[Tuple[float, float]] = None, alpha: float = 0.7):
+def multilineplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    lines: str,
+    hue: Optional[str] = None,
+    colorpalette: List = ITERATION_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
+    xlim: Optional[Tuple[float, float]] = None,
+    alpha: float = 0.7,
+):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
     lines = clean_variable(lines)
     hue_order = []
-    if hue: 
+    if hue:
         hue = clean_variable(hue)
         hue_order = df[hue].drop_duplicates()
 
@@ -114,14 +170,18 @@ def multilineplot(df: pd.DataFrame, x: str, y: str, lines: str, hue: Optional[st
     plt.figure(figsize=(10, 7))
     for v in df[lines].drop_duplicates():
         filtered_df = df[df[lines] == v]
-        ax = sns.lineplot(filtered_df, x=x, y=y, hue=hue, hue_order=hue_order, palette=colorpalette)
+        ax = sns.lineplot(
+            filtered_df, x=x, y=y, hue=hue, hue_order=hue_order, palette=colorpalette
+        )
 
     if ax is None:
         raise Exception("No axes created")
     for line in ax.lines:
         line.set_alpha(alpha)
-    if xlim: ax.set_xlim(*xlim)
-    if ylim: ax.set_ylim(*ylim)
+    if xlim:
+        ax.set_xlim(*xlim)
+    if ylim:
+        ax.set_ylim(*ylim)
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -141,11 +201,23 @@ def multilineplot(df: pd.DataFrame, x: str, y: str, lines: str, hue: Optional[st
         frameon=False,
     )
 
-    if title: plt.title(title)
+    if title:
+        plt.title(title)
     plot(filepath)
 
 
-def gridlineplot(df: pd.DataFrame, x: str, y: str, hue: str, axes: str, colorpalette: List = ITERATION_COLOR_MAP, filepath: Optional[Path]=None, title: Optional[str]=None, ylim: Optional[Tuple[float, float]] = None, xlim: Optional[Tuple[float, float]] = None):
+def gridlineplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: str,
+    axes: str,
+    colorpalette: List = ITERATION_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
+    xlim: Optional[Tuple[float, float]] = None,
+):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
@@ -159,15 +231,21 @@ def gridlineplot(df: pd.DataFrame, x: str, y: str, hue: str, axes: str, colorpal
     ncols = int(min(len(groups), max_cols))
     num_labels = len(df[hue].drop_duplicates())
     legend_cols = np.ceil(num_labels / 2) if num_labels > 5 else num_labels
-    fig, axs, legend_ax = axgrid(nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3)
+    fig, axs, legend_ax = axgrid(
+        nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
+    )
 
-    names: List[str]  = list(df[hue].drop_duplicates())
-    cmap = mpl.colors.LinearSegmentedColormap.from_list("multiline", colorpalette, N=len(names))
+    names: List[str] = list(df[hue].drop_duplicates())
+    cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "multiline", colorpalette, N=len(names)
+    )
     colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
 
     for ax, (name, group) in zip(axs, groups):
         name = clean_variable(str(name))
-        sns.lineplot(group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=names, ax=ax)
+        sns.lineplot(
+            group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=names, ax=ax
+        )
 
         ax.set_title(name)
         if xlim:
@@ -192,7 +270,8 @@ def gridlineplot(df: pd.DataFrame, x: str, y: str, hue: str, axes: str, colorpal
         for h, l in zip(handles, labels):
             legend_items[clean_variable(l)] = h  # deduplicate by label
         axlegend = ax.get_legend()
-        if axlegend: axlegend.remove()
+        if axlegend:
+            axlegend.remove()
     legend_ax.legend(
         legend_items.values(),
         legend_items.keys(),
@@ -203,16 +282,18 @@ def gridlineplot(df: pd.DataFrame, x: str, y: str, hue: str, axes: str, colorpal
     )
 
     # Remove unused subplots
-    for ax in axs[len(groups):]:
+    for ax in axs[len(groups) :]:
         fig.delaxes(ax)
 
-    if title: plt.title(title)
+    if title:
+        plt.title(title)
     plot(filepath)
 
 
 if __name__ == "__main__":
+
     @dataclass
-    class Args():
+    class Args:
         statspath: Path
         """Path to eureka statistics file"""
         rewardspath: Path
@@ -229,21 +310,84 @@ if __name__ == "__main__":
     eureka_stats["version"] = "Test"
 
     ### generate eureka stats plots
-    scatterplot(eureka_stats, x="iteration", y="fitness_score_max", hue="version", filepath=args.result_dir / "fitness_score_max_scatter.png")
-    scatteredlineplot(eureka_stats, x="iteration", y="fitness_score_max", hue="version", filepath=args.result_dir / "fitness_score_max_scatterline.png")
-    lineplot(eureka_stats, x="iteration", y="fitness_score_max", hue="version", colorpalette=LLM_COLOR_MAP, filepath=args.result_dir / "fitness_score_max_line.png")
+    scatterplot(
+        eureka_stats,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        filepath=args.result_dir / "fitness_score_max_scatter.png",
+    )
+    scatteredlineplot(
+        eureka_stats,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        filepath=args.result_dir / "fitness_score_max_scatterline.png",
+    )
+    lineplot(
+        eureka_stats,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        colorpalette=LLM_COLOR_MAP,
+        filepath=args.result_dir / "fitness_score_max_line.png",
+    )
 
     execution_rates = to_execution_rates(eureka_stats)
     execution_rates["version"] = "Test"
-    lineplot(execution_rates, x="iteration", y="execution_rate", hue="version", colorpalette=LLM_COLOR_MAP, ylim=(0, 1), filepath=args.result_dir / "execution_rates.png")
+    lineplot(
+        execution_rates,
+        x="iteration",
+        y="execution_rate",
+        hue="version",
+        colorpalette=LLM_COLOR_MAP,
+        ylim=(0, 1),
+        filepath=args.result_dir / "execution_rates.png",
+    )
 
-    scatteredlineplot(eureka_stats, x="iteration", y="fitness_score_max", hue="version", filepath=args.result_dir / "fitness_score_max.png")
-    scatteredlineplot(eureka_stats, x="iteration", y="reward_total_max", hue="version", filepath=args.result_dir / "reward_total_max.png")
-    scatteredlineplot(eureka_stats, x="iteration", y="episode_length", hue="version", filepath=args.result_dir / "episode_length.png")
-    scatteredlineplot(eureka_stats, x="iteration", y="num_reward_functions", hue="version", filepath=args.result_dir / "num_reward_functions.png")
+    scatteredlineplot(
+        eureka_stats,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        filepath=args.result_dir / "fitness_score_max.png",
+    )
+    scatteredlineplot(
+        eureka_stats,
+        x="iteration",
+        y="reward_total_max",
+        hue="version",
+        filepath=args.result_dir / "reward_total_max.png",
+    )
+    scatteredlineplot(
+        eureka_stats,
+        x="iteration",
+        y="episode_length",
+        hue="version",
+        filepath=args.result_dir / "episode_length.png",
+    )
+    scatteredlineplot(
+        eureka_stats,
+        x="iteration",
+        y="num_reward_functions",
+        hue="version",
+        filepath=args.result_dir / "num_reward_functions.png",
+    )
 
-    tokens = rotate_df(eureka_stats, "iteration", ["prompt_tokens", "completion_tokens", "total_tokens"], "tokens")
-    lineplot(tokens, x="iteration", y="tokens", hue="type", colorpalette=LLM_COLOR_MAP, filepath=args.result_dir / "tokens.png")
+    tokens = rotate_df(
+        eureka_stats,
+        "iteration",
+        ["prompt_tokens", "completion_tokens", "total_tokens"],
+        "tokens",
+    )
+    lineplot(
+        tokens,
+        x="iteration",
+        y="tokens",
+        hue="type",
+        colorpalette=LLM_COLOR_MAP,
+        filepath=args.result_dir / "tokens.png",
+    )
 
     eureka_metrics = load_metric_series(args.rewardspath, args.train_iterations)
     eureka_losses: pd.DataFrame = eureka_metrics[eureka_metrics["metric_name"].str.match("loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
@@ -253,10 +397,43 @@ if __name__ == "__main__":
     base_metric = "height"
     base: pd.DataFrame = eureka_metrics[eureka_metrics["metric_name"] == base_metric]  # type: ignore
     for corr_method in ["spearman", "kendall", "pearson"]:
-        correlations = get_correlation_df(base, eureka_rewards, "reward", corr_method)  #type: ignore
-        gridlineplot(correlations, x="iteration", y=f"{corr_method}_correlation", hue="samples", axes="reward", colorpalette=CORRELATION_COLOR_MAP, filepath=args.result_dir / f"correlation_{corr_method}.png", ylim=(-1.1, 1.1))
+        correlations = get_correlation_df(base, eureka_rewards, "reward", corr_method)  # type: ignore
+        gridlineplot(
+            correlations,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=CORRELATION_COLOR_MAP,
+            filepath=args.result_dir / f"correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
 
-    gridlineplot(eureka_rewards, x="training_iteration", y="value", hue="reward", axes="iteration", colorpalette=REWARD_COLOR_MAP, filepath=args.result_dir / "rewards_per_iter.png")
-    gridlineplot(eureka_rewards, x="training_iteration", y="value", hue="iteration", axes="reward", colorpalette=ITERATION_COLOR_MAP, filepath=args.result_dir / "rewards_per_type.png")
+    gridlineplot(
+        eureka_rewards,
+        x="training_iteration",
+        y="value",
+        hue="reward",
+        axes="iteration",
+        colorpalette=REWARD_COLOR_MAP,
+        filepath=args.result_dir / "rewards_per_iter.png",
+    )
+    gridlineplot(
+        eureka_rewards,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="reward",
+        colorpalette=ITERATION_COLOR_MAP,
+        filepath=args.result_dir / "rewards_per_type.png",
+    )
     orientation_rewards: pd.DataFrame = eureka_rewards[eureka_rewards["reward"] == "orientation"].rename({"value": "orientation"}, axis=1)  # type: ignore
-    multilineplot(orientation_rewards, x="training_iteration", y="orientation", lines="sample", hue="iteration", colorpalette=ITERATION_COLOR_MAP, filepath=args.result_dir / "orientation.png")
+    multilineplot(
+        orientation_rewards,
+        x="training_iteration",
+        y="orientation",
+        lines="sample",
+        hue="iteration",
+        colorpalette=ITERATION_COLOR_MAP,
+        filepath=args.result_dir / "orientation.png",
+    )
