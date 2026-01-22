@@ -35,6 +35,7 @@ def scatterplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, col
     y = clean_variable(y)
     if hue: hue = clean_variable(hue)
 
+    plt.figure(figsize=(10, 7))
     ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
     if xlim: ax.set_xlim(*xlim)
@@ -57,6 +58,7 @@ def lineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = None, colorp
     y = clean_variable(y)
     if hue: hue = clean_variable(hue)
 
+    plt.figure(figsize=(10, 7))
     ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
     if xlim: ax.set_xlim(*xlim)
@@ -80,6 +82,7 @@ def scatteredlineplot(df: pd.DataFrame, x: str, y: str, hue: Optional[str] = Non
     y = clean_variable(y)
     if hue: hue = clean_variable(hue)
 
+    plt.figure(figsize=(10, 7))
     ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, legend=False)
     ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
 
@@ -108,6 +111,7 @@ def multilineplot(df: pd.DataFrame, x: str, y: str, lines: str, hue: Optional[st
         hue_order = df[hue].drop_duplicates()
 
     ax = None
+    plt.figure(figsize=(10, 7))
     for v in df[lines].drop_duplicates():
         filtered_df = df[df[lines] == v]
         ax = sns.lineplot(filtered_df, x=x, y=y, hue=hue, hue_order=hue_order, palette=colorpalette)
