@@ -1,3 +1,7 @@
+import matplotlib as mpl
+import numpy as np
+
+
 class Color:
     BLACK = (0, 0, 0)
     BLUE = (55 / 256, 88 / 256, 136 / 256)
@@ -16,8 +20,16 @@ LLM_COLOR_MAP = [
     Color.RED,
     Color.GREEN,
 ]  # TODO check and extend
-TOKEN_COLOR_MAP = [Color.BLUE, Color.YELLOW, Color.RED, Color.GREEN, Color.BLACK]
-ITERATION_COLOR_MAP = [Color.YELLOW, Color.GREY, Color.BLUE]
+LLM_ORDER = ["Qwen/Qwen3-32B-AWQ"]  # TODO extend and apply
+
+num_iterations = 5
+cmap = mpl.colors.LinearSegmentedColormap.from_list(
+    "multiline",
+    [Color.YELLOW, Color.GREY, Color.BLUE],
+    N=num_iterations,  # TODO make adjustable?
+)
+ITERATION_COLOR_MAP = [cmap(i) for i in np.linspace(0, 1, num_iterations)]
+
 CORRELATION_COLOR_MAP = [Color.BLUE, Color.YELLOW]
 REWARD_COLOR_MAP = [
     Color.BLUE,
@@ -29,4 +41,28 @@ REWARD_COLOR_MAP = [
     Color.ORANGE,
 ]
 
-LLM_ORDER = ["Qwen3-32B-AWQ"]  # TODO extend and apply
+TOKEN_COLOR_MAP = [Color.BLACK, Color.BLUE, Color.RED, Color.ORANGE, Color.YELLOW]
+TOKEN_ORDER = [
+    "Total Tokens",
+    "Prompt Tokens",
+    "Completion Tokens",
+    "Answer Tokens",
+    "Thinking Tokens",
+]
+
+
+# control package visibility
+__all__ = [
+    "Color",
+    "LLM_COLOR_MAP",
+    "LLM_ORDER",
+    "ITERATION_COLOR_MAP",
+    "CORRELATION_COLOR_MAP",
+    "REWARD_COLOR_MAP",
+    "TOKEN_COLOR_MAP",
+    "TOKEN_ORDER",
+]
+
+
+def __dir__():
+    return __all__

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Literal
 from collections import OrderedDict
 from pathlib import Path
 from dataclasses import dataclass
@@ -41,6 +41,7 @@ def scatterplot(
     title: Optional[str] = None,
     ylim: Optional[Tuple[float, float]] = None,
     xlim: Optional[Tuple[float, float]] = None,
+    hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -49,7 +50,9 @@ def scatterplot(
         hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
-    ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
+    ax = sns.scatterplot(
+        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
+    )
 
     if xlim:
         ax.set_xlim(*xlim)
@@ -78,6 +81,7 @@ def lineplot(
     title: Optional[str] = None,
     ylim: Optional[Tuple[float, float]] = None,
     xlim: Optional[Tuple[float, float]] = None,
+    hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -86,7 +90,7 @@ def lineplot(
         hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
-    ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette)
+    ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order)
 
     if xlim:
         ax.set_xlim(*xlim)
@@ -116,6 +120,7 @@ def scatteredlineplot(
     title: Optional[str] = None,
     ylim: Optional[Tuple[float, float]] = None,
     xlim: Optional[Tuple[float, float]] = None,
+    hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -124,8 +129,12 @@ def scatteredlineplot(
         hue = clean_variable(hue)
 
     plt.figure(figsize=(10, 7))
-    ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, legend=False)
-    ax = sns.scatterplot(df, x=x, y=y, hue=hue, palette=colorpalette)
+    ax = sns.lineplot(
+        df, x=x, y=y, hue=hue, palette=colorpalette, legend=False, hue_order=hue_order
+    )
+    ax = sns.scatterplot(
+        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
+    )
 
     if xlim:
         ax.set_xlim(*xlim)
@@ -164,7 +173,7 @@ def multilineplot(
     hue_order = []
     if hue:
         hue = clean_variable(hue)
-        hue_order = df[hue].drop_duplicates()
+        hue_order = df[hue].drop_duplicates().sort_values()
 
     ax = None
     plt.figure(figsize=(10, 7))
@@ -235,7 +244,7 @@ def gridlineplot(
         nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
     )
 
-    names: List[str] = list(df[hue].drop_duplicates())
+    names: List[str] = list(df[hue].drop_duplicates().sort_values())
     cmap = mpl.colors.LinearSegmentedColormap.from_list(
         "multiline", colorpalette, N=len(names)
     )
@@ -296,88 +305,73 @@ if __name__ == "__main__":
     class Args:
         statspath: Path
         """Path to eureka statistics file"""
-        rewardspath: Path
+        metricspath: Path
         """Path to eureka rewards/metrics file"""
-        train_iterations: int = 500
+        result_dir: Path
+        """directory in which graphics are stored"""
+        train_iterations: int = 300
         """Number of iterations used for training of samples"""
-        result_dir: Path = Path(__file__)
 
     args = tyro.cli(Args)
     args.result_dir.mkdir(parents=True, exist_ok=True)
 
-    eureka_stats = pd.read_csv(args.statspath)
-    # TODO autofill presentable version
-    eureka_stats["version"] = "Test"
+    full_stats = pd.read_csv(args.statspath)
+    graphics_dir = args.result_dir
 
-    ### generate eureka stats plots
-    scatterplot(
-        eureka_stats,
-        x="iteration",
-        y="fitness_score_max",
-        hue="version",
-        filepath=args.result_dir / "fitness_score_max_scatter.png",
-    )
-    scatteredlineplot(
-        eureka_stats,
-        x="iteration",
-        y="fitness_score_max",
-        hue="version",
-        filepath=args.result_dir / "fitness_score_max_scatterline.png",
-    )
+    execution_rate_df = to_execution_rates(full_stats)
+    execution_rate_df["version"] = full_stats["version"].iloc[0]
     lineplot(
-        eureka_stats,
-        x="iteration",
-        y="fitness_score_max",
-        hue="version",
-        colorpalette=LLM_COLOR_MAP,
-        filepath=args.result_dir / "fitness_score_max_line.png",
-    )
-
-    execution_rates = to_execution_rates(eureka_stats)
-    execution_rates["version"] = "Test"
-    lineplot(
-        execution_rates,
+        execution_rate_df,
         x="iteration",
         y="execution_rate",
         hue="version",
         colorpalette=LLM_COLOR_MAP,
-        ylim=(0, 1),
-        filepath=args.result_dir / "execution_rates.png",
+        ylim=(-0.1, 1.1),
+        filepath=graphics_dir / "execution_rates.png",
     )
 
+    # use only successful evaluations
+    full_stats: pd.DataFrame = full_stats[full_stats["execution"] == 1]  # type: ignore (vscode bug)
     scatteredlineplot(
-        eureka_stats,
+        full_stats,
         x="iteration",
         y="fitness_score_max",
         hue="version",
-        filepath=args.result_dir / "fitness_score_max.png",
+        filepath=graphics_dir / "fitness_score_max.png",
     )
     scatteredlineplot(
-        eureka_stats,
+        full_stats,
         x="iteration",
         y="reward_total_max",
         hue="version",
-        filepath=args.result_dir / "reward_total_max.png",
+        filepath=graphics_dir / "reward_total_max.png",
     )
     scatteredlineplot(
-        eureka_stats,
+        full_stats,
         x="iteration",
         y="episode_length",
         hue="version",
-        filepath=args.result_dir / "episode_length.png",
+        filepath=graphics_dir / "episode_length.png",
     )
     scatteredlineplot(
-        eureka_stats,
+        full_stats,
         x="iteration",
         y="num_reward_functions",
         hue="version",
-        filepath=args.result_dir / "num_reward_functions.png",
+        ylim=(0, 12),
+        filepath=graphics_dir / "num_reward_functions.png",
     )
 
     tokens = rotate_df(
-        eureka_stats,
+        full_stats,
         "iteration",
-        ["prompt_tokens", "completion_tokens", "total_tokens"],
+        [
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "thinking_tokens",
+            "answer_tokens",
+        ],
         "tokens",
     )
     lineplot(
@@ -385,55 +379,107 @@ if __name__ == "__main__":
         x="iteration",
         y="tokens",
         hue="type",
-        colorpalette=LLM_COLOR_MAP,
-        filepath=args.result_dir / "tokens.png",
+        hue_order=TOKEN_ORDER,
+        colorpalette=TOKEN_COLOR_MAP,
+        filepath=graphics_dir / "tokens.png",
     )
 
-    eureka_metrics = load_metric_series(args.rewardspath, args.train_iterations)
-    eureka_losses: pd.DataFrame = eureka_metrics[eureka_metrics["metric_name"].str.match("loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
-    loss_names = list(eureka_losses["loss"].drop_duplicates())
-    eureka_rewards: pd.DataFrame = eureka_metrics[~eureka_metrics["metric_name"].isin(["episode_length", "fitness_score", "total"] + loss_names)].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    metrics_df = load_metric_series(args.metricspath, args.train_iterations)
 
-    base_metric = "height"
-    base: pd.DataFrame = eureka_metrics[eureka_metrics["metric_name"] == base_metric]  # type: ignore
-    for corr_method in ["spearman", "kendall", "pearson"]:
-        correlations = get_correlation_df(base, eureka_rewards, "reward", corr_method)  # type: ignore
-        gridlineplot(
-            correlations,
-            x="iteration",
-            y=f"{corr_method}_correlation",
-            hue="samples",
-            axes="reward",
-            colorpalette=CORRELATION_COLOR_MAP,
-            filepath=args.result_dir / f"correlation_{corr_method}.png",
-            ylim=(-1.1, 1.1),
-        )
-
+    losses_df: pd.DataFrame = metrics_df[metrics_df["metric_name"].str.match(".*loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
     gridlineplot(
-        eureka_rewards,
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="loss",
+        axes="iteration",
+        colorpalette=REWARD_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_iter.png",
+    )
+    gridlineplot(
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="loss",
+        colorpalette=ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_type.png",
+    )
+
+    reward_components_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score", "total"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    gridlineplot(
+        reward_components_df,
         x="training_iteration",
         y="value",
         hue="reward",
         axes="iteration",
         colorpalette=REWARD_COLOR_MAP,
-        filepath=args.result_dir / "rewards_per_iter.png",
+        filepath=graphics_dir / "rewards_per_iter.png",
     )
     gridlineplot(
-        eureka_rewards,
+        reward_components_df,
         x="training_iteration",
         y="value",
         hue="iteration",
         axes="reward",
         colorpalette=ITERATION_COLOR_MAP,
-        filepath=args.result_dir / "rewards_per_type.png",
+        filepath=graphics_dir / "rewards_per_type.png",
     )
-    orientation_rewards: pd.DataFrame = eureka_rewards[eureka_rewards["reward"] == "orientation"].rename({"value": "orientation"}, axis=1)  # type: ignore
+
+    rew_total_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "total"].rename({"value": "total_reward"}, axis=1)  # type: ignore
     multilineplot(
-        orientation_rewards,
+        rew_total_df,
         x="training_iteration",
-        y="orientation",
+        y="total_reward",
         lines="sample",
         hue="iteration",
         colorpalette=ITERATION_COLOR_MAP,
-        filepath=args.result_dir / "orientation.png",
+        filepath=graphics_dir / "total_reward.png",
     )
+    fitness_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "fitness_score"].rename({"value": "fitness_score"}, axis=1)  # type: ignore
+    multilineplot(
+        fitness_score_df,
+        x="training_iteration",
+        y="fitness_score",
+        lines="sample",
+        hue="iteration",
+        colorpalette=ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "fitness_score.png",
+    )
+
+    # correlations
+    corr_methods: List[Literal["spearman", "kendall", "pearson"]] = [
+        "spearman",
+        "kendall",
+        "pearson",
+    ]
+    rewards_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    base_metric = "fitness_score"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = get_correlation_df(base_df, rewards_df, "reward", corr_method)
+        gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
+
+    base_metric = "value loss"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = get_correlation_df(base_df, rewards_df, "reward", corr_method)
+        gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
