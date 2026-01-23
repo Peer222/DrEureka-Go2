@@ -1,0 +1,207 @@
+import tyro
+from dataclasses import dataclass
+from typing import List, Literal
+
+import pandas as pd
+from pathlib import Path
+import plots_plus
+
+
+def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFrame, graphics_dir: Path):
+    execution_rate_df = plots_plus.utils.to_execution_rates(full_stats_df)
+    execution_rate_df["version"] = model
+    plots_plus.lineplot(
+        execution_rate_df,
+        x="iteration",
+        y="execution_rate",
+        hue="version",
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        ylim=(-0.1, 1.1),
+        filepath=graphics_dir / "execution_rates.png",
+    )
+
+    # use only successful evaluations
+    full_success_stats_df: pd.DataFrame = full_stats_df[full_stats_df["execution"] == 1]  # type: ignore (vscode bug)
+    plots_plus.scatteredlineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        filepath=graphics_dir / "fitness_score_max.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="reward_total_max",
+        hue="version",
+        filepath=graphics_dir / "reward_total_max.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="episode_length",
+        hue="version",
+        filepath=graphics_dir / "episode_length.png",
+    )
+    plots_plus.scatteredlineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="num_reward_functions",
+        hue="version",
+        ylim=(0, 12),
+        filepath=graphics_dir / "num_reward_functions.png",
+    )
+
+    tokens = plots_plus.utils.rotate_df(
+        full_success_stats_df,
+        "iteration",
+        [
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "thinking_tokens",
+            "answer_tokens",
+        ],
+        "tokens",
+    )
+    plots_plus.lineplot(
+        tokens,
+        x="iteration",
+        y="tokens",
+        hue="type",
+        hue_order=plots_plus.colors.TOKEN_ORDER,
+        colorpalette=plots_plus.colors.TOKEN_COLOR_MAP,
+        filepath=graphics_dir / "tokens.png",
+    )
+
+    losses_df: pd.DataFrame = metrics_df[metrics_df["metric_name"].str.match(".*loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
+    plots_plus.gridlineplot(
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="loss",
+        axes="iteration",
+        colorpalette=plots_plus.colors.REWARD_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_iter.png",
+    )
+    plots_plus.gridlineplot(
+        losses_df,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="loss",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "losses_per_type.png",
+    )
+
+    reward_components_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score", "total"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    plots_plus.gridlineplot(
+        reward_components_df,
+        x="training_iteration",
+        y="value",
+        hue="reward",
+        axes="iteration",
+        colorpalette=plots_plus.colors.REWARD_COLOR_MAP,
+        filepath=graphics_dir / "rewards_per_iter.png",
+    )
+    plots_plus.gridlineplot(
+        reward_components_df,
+        x="training_iteration",
+        y="value",
+        hue="iteration",
+        axes="reward",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "rewards_per_type.png",
+    )
+
+    rew_total_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "total"].rename({"value": "total_reward"}, axis=1)  # type: ignore
+    plots_plus.multilineplot(
+        rew_total_df,
+        x="training_iteration",
+        y="total_reward",
+        lines="sample",
+        hue="iteration",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "total_reward.png",
+    )
+    fitness_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "fitness_score"].rename({"value": "fitness_score"}, axis=1)  # type: ignore
+    plots_plus.multilineplot(
+        fitness_score_df,
+        x="training_iteration",
+        y="fitness_score",
+        lines="sample",
+        hue="iteration",
+        colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+        filepath=graphics_dir / "fitness_score.png",
+    )
+
+    # correlations
+    corr_methods: List[Literal["spearman", "kendall", "pearson"]] = [
+        "spearman",
+        "kendall",
+        "pearson",
+    ]
+    rewards_df: pd.DataFrame = metrics_df[~metrics_df["metric_name"].isin(["episode_length", "fitness_score"] + list(losses_df["loss"].drop_duplicates()))].rename({"metric_name": "reward"}, axis=1)  # type: ignore
+    base_metric = "fitness_score"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = plots_plus.utils.get_correlation_df(
+            base_df, rewards_df, "reward", corr_method
+        )
+        plots_plus.gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
+
+    base_metric = "value loss"
+    base_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == base_metric]  # type: ignore
+    for corr_method in corr_methods:
+        correlations_df = plots_plus.utils.get_correlation_df(
+            base_df, rewards_df, "reward", corr_method
+        )
+        plots_plus.gridlineplot(
+            correlations_df,
+            x="iteration",
+            y=f"{corr_method}_correlation",
+            hue="samples",
+            axes="reward",
+            colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
+            filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png",
+            ylim=(-1.1, 1.1),
+        )
+
+
+__all__ = ["create_plots"]
+
+
+def __dir__():
+    return __all__
+
+
+if __name__ == "__main__":
+    @dataclass
+    class Args:
+        statspath: Path
+        """Path to eureka statistics file"""
+        metricspath: Path
+        """Path to eureka rewards/metrics file"""
+        result_dir: Path
+        """directory in which graphics are stored"""
+        train_iterations: int = 5000
+        """Number of iterations used for training of samples"""
+
+    args = tyro.cli(Args)
+    args.result_dir.mkdir(parents=True, exist_ok=True)
+
+    full_stats_df = pd.read_csv(args.statspath)
+    graphics_dir = args.result_dir
+    metrics_df = plots_plus.utils.load_metric_series(
+        args.metricspath, args.train_iterations
+    )
+    create_plots(full_stats_df["version"].iloc[0].split("_")[0], full_stats_df, metrics_df, args.result_dir)
