@@ -345,7 +345,9 @@ def main(cfg):
         logging.info(stats)
         stats = pd.DataFrame(stats)
         stats["iteration"] = iter
+        stats["version"] = f"{cfg.model}_{TIMESTAMP}"
         full_stats = pd.concat([full_stats, stats])
+        full_stats.to_csv("stats.csv")
         # Select the best code sample based on the success rate
         best_sample_idx = np.argmax(stats["fitness_score_max"])
         best_content = contents[best_sample_idx]
