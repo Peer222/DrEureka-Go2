@@ -370,7 +370,7 @@ def main(cfg):
             messages += [
                 {
                     "role": "assistant",
-                    "content": samples[best_sample_idx]["message"]["content"],
+                    "content": samples[best_sample_idx]["message"]["answer"],
                 }
             ]
             messages += [{"role": "user", "content": best_content}]
@@ -378,7 +378,7 @@ def main(cfg):
             assert len(messages) == 4
             messages[-2] = {
                 "role": "assistant",
-                "content": samples[best_sample_idx]["message"]["content"],
+                "content": samples[best_sample_idx]["message"]["answer"],
             }
             messages[-1] = {"role": "user", "content": best_content}
 
