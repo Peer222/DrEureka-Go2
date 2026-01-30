@@ -1,4 +1,5 @@
 import tyro
+import ast
 from dataclasses import dataclass
 from typing import List, Literal
 
@@ -7,7 +8,15 @@ from pathlib import Path
 import plots_plus
 
 
-def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFrame, graphics_dir: Path):
+def create_plots(
+    model: str,
+    full_stats_df: pd.DataFrame,
+    metrics_df: pd.DataFrame,
+    graphics_dir: Path,
+):
+    full_stats_df["reward_names"] = full_stats_df["reward_names"].apply(
+        ast.literal_eval
+    )
     execution_rate_df = plots_plus.utils.to_execution_rates(full_stats_df)
     execution_rate_df["version"] = model
     plots_plus.lineplot(
@@ -27,6 +36,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
         x="iteration",
         y="fitness_score_max",
         hue="version",
+        ylim=(0, None),
         filepath=graphics_dir / "fitness_score_max.png",
     )
     plots_plus.scatteredlineplot(
@@ -41,6 +51,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
         x="iteration",
         y="episode_length",
         hue="version",
+        ylim=(0, None),
         filepath=graphics_dir / "episode_length.png",
     )
     plots_plus.scatteredlineplot(
@@ -48,8 +59,27 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
         x="iteration",
         y="num_reward_functions",
         hue="version",
-        ylim=(0, 12),
+        ylim=(0, None),
         filepath=graphics_dir / "num_reward_functions.png",
+    )
+    num_rew_per_iter_groups = full_success_stats_df.groupby("iteration")
+    obj = {"iteration": [], "reward_names": []}
+    for j, group in num_rew_per_iter_groups:
+        names = []
+        for i, row in group.iterrows():
+            names.extend(row["reward_names"])
+        obj["reward_names"].append(len(pd.Series(names).drop_duplicates()))
+        obj["iteration"].append(j)
+    num_rew_per_iter_df = pd.DataFrame(obj)
+    num_rew_per_iter_df["version"] = full_stats_df["version"].iloc[0]
+    plots_plus.lineplot(
+        num_rew_per_iter_df,
+        x="iteration",
+        y="reward_names",
+        hue="version",
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        ylim=(0, None),
+        filepath=graphics_dir / "reward_names.png",
     )
 
     tokens = plots_plus.utils.rotate_df(
@@ -69,6 +99,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
         x="iteration",
         y="tokens",
         hue="type",
+        ylim=(0, None),
         hue_order=plots_plus.colors.TOKEN_ORDER,
         colorpalette=plots_plus.colors.TOKEN_COLOR_MAP,
         filepath=graphics_dir / "tokens.png",
@@ -131,6 +162,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
         y="fitness_score",
         lines="sample",
         hue="iteration",
+        ylim=(0, None),
         colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
         filepath=graphics_dir / "fitness_score.png",
     )
@@ -157,6 +189,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
             colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
             filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png",
             ylim=(-1.1, 1.1),
+            markers=True,
         )
 
     base_metric = "value loss"
@@ -174,6 +207,7 @@ def create_plots(model: str, full_stats_df: pd.DataFrame, metrics_df: pd.DataFra
             colorpalette=plots_plus.colors.CORRELATION_COLOR_MAP,
             filepath=graphics_dir / f"rew_loss_correlation_{corr_method}.png",
             ylim=(-1.1, 1.1),
+            markers=True,
         )
 
 
@@ -185,6 +219,7 @@ def __dir__():
 
 
 if __name__ == "__main__":
+
     @dataclass
     class Args:
         statspath: Path
@@ -204,4 +239,9 @@ if __name__ == "__main__":
     metrics_df = plots_plus.utils.load_metric_series(
         args.metricspath, args.train_iterations
     )
-    create_plots(full_stats_df["version"].iloc[0].split("_")[0], full_stats_df, metrics_df, args.result_dir)
+    create_plots(
+        full_stats_df["version"].iloc[0].split("_")[0],
+        full_stats_df,
+        metrics_df,
+        args.result_dir,
+    )

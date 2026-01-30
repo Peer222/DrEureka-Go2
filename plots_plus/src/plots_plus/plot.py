@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from collections import OrderedDict
 from pathlib import Path
 
@@ -37,8 +37,8 @@ def scatterplot(
     colorpalette: List = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
-    ylim: Optional[Tuple[float, float]] = None,
-    xlim: Optional[Tuple[float, float]] = None,
+    xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
@@ -52,10 +52,9 @@ def scatterplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
     )
 
-    if xlim:
-        ax.set_xlim(*xlim)
-    if ylim:
-        ax.set_ylim(*ylim)
+    ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
+    ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
+
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -77,8 +76,8 @@ def lineplot(
     colorpalette: List = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
-    ylim: Optional[Tuple[float, float]] = None,
-    xlim: Optional[Tuple[float, float]] = None,
+    xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
@@ -90,15 +89,13 @@ def lineplot(
     plt.figure(figsize=(10, 7))
     ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order)
 
-    if xlim:
-        ax.set_xlim(*xlim)
-    if ylim:
-        ax.set_ylim(*ylim)
+    ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
+    ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
+
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
     ax.grid(True, color=Color.LIGHT_GREY)
-    # for eval iterations. Otherwise has to be adapted TODO
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
@@ -116,8 +113,8 @@ def scatteredlineplot(
     colorpalette: List = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
-    ylim: Optional[Tuple[float, float]] = None,
-    xlim: Optional[Tuple[float, float]] = None,
+    xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
 ):
     df = clean_df_labels(df)
@@ -134,10 +131,9 @@ def scatteredlineplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
     )
 
-    if xlim:
-        ax.set_xlim(*xlim)
-    if ylim:
-        ax.set_ylim(*ylim)
+    ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
+    ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
+
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -160,8 +156,8 @@ def multilineplot(
     colorpalette: List = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
-    ylim: Optional[Tuple[float, float]] = None,
-    xlim: Optional[Tuple[float, float]] = None,
+    xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     alpha: float = 0.7,
 ):
     df = clean_df_labels(df)
@@ -185,10 +181,10 @@ def multilineplot(
         raise Exception("No axes created")
     for line in ax.lines:
         line.set_alpha(alpha)
-    if xlim:
-        ax.set_xlim(*xlim)
-    if ylim:
-        ax.set_ylim(*ylim)
+
+    ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
+    ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
+
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
@@ -222,8 +218,9 @@ def gridlineplot(
     colorpalette: List = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
-    ylim: Optional[Tuple[float, float]] = None,
-    xlim: Optional[Tuple[float, float]] = None,
+    xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
+    markers: Optional[bool] = None,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -237,7 +234,7 @@ def gridlineplot(
     nrows = int(np.ceil(len(groups) / max_cols))
     ncols = int(min(len(groups), max_cols))
     num_labels = len(df[hue].drop_duplicates())
-    legend_cols = np.ceil(num_labels / 2) if num_labels > 5 else num_labels
+    legend_cols = 2 * ncols if num_labels > 2 * ncols else num_labels
     fig, axs, legend_ax = axgrid(
         nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
     )
@@ -255,14 +252,14 @@ def gridlineplot(
         )
 
         ax.set_title(name)
-        if xlim:
-            ax.set_xlim(*xlim)
-        else:
-            ax.set_xlim(min(df[x]), max(df[x]) + 0.1)
-        if ylim:
-            ax.set_ylim(*ylim)
-        else:
-            ax.set_ylim(min(df[y]), max(df[y]))
+        ax.set_xlim(*get_limits(df, x, xlim))
+        ax.set_ylim(*get_limits(df, y, ylim))
+
+        if markers:
+            sns.scatterplot(
+                group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=names, ax=ax
+            )
+
         ax.tick_params(direction="in", length=0)
         ax.set_axisbelow(True)
         sns.despine(left=True, bottom=True, right=True, top=True)

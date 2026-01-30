@@ -239,10 +239,31 @@ def compute_correlation(
         method (Literal["pearson", "kendall", "spearman"], optional): Type of correlation. Defaults to "pearson".
 
     Returns:
-        float: _description_
+        float: Correlation between both series
     """
     merged = pd.merge(left, right, on=on, suffixes=["_base", "_reward"])
     return merged[f"{column}_base"].corr(merged[f"{column}_reward"], method=method)
+
+
+def get_limits(
+    df: pd.DataFrame,
+    col: str,
+    method: Union[Tuple[Union[float, None], Union[float, None]], str],
+) -> Union[Tuple[Union[float, None], Union[float, None]], Tuple[None]]:
+    if isinstance(method, tuple):
+        return method
+    if method not in ["minmax", "auto"]:
+        return (None,)
+    if method == "minmax":
+        maximum = max(df[col])
+        return min(df[col]) - maximum / 50, maximum + maximum / 50
+    elif method == "auto":
+        percentiles = df[col].where(df[col] != 0).describe(percentiles=[0.025, 0.975])
+        pad_factor = 1.6
+        return max(pad_factor * percentiles["2.5%"], percentiles["min"]), min(
+            pad_factor * percentiles["97.5%"], percentiles["max"]
+        )
+    raise NotImplementedError(f"{method} not implemented for limits")
 
 
 # control package visibility
@@ -256,6 +277,7 @@ __all__ = [
     "clean_df_labels",
     "get_correlation_df",
     "compute_correlation",
+    "get_limits",
 ]
 
 
