@@ -7,7 +7,7 @@
 
 #SBATCH -J vllm-eureka
 #SBATCH -o slurm_logs/vllm-eureka/%j.out
-#SBATCH --time=6-00:00:00
+#SBATCH --time=7-00:00:00
 
 
 if [ "$#" -ne 2 ]; then
