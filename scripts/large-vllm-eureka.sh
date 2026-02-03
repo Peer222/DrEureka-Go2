@@ -5,8 +5,8 @@
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:rtx_3090:3
 
-#SBATCH -J vllm-eureka-multigpu
-#SBATCH -o slurm_logs/vllm-eureka-multigpu/%j.out
+#SBATCH -J large-vllm-eureka
+#SBATCH -o slurm_logs/large-vllm-eureka/%j.out
 #SBATCH --time=7-00:00:00
 
 

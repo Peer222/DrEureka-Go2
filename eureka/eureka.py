@@ -1,4 +1,5 @@
 import hydra
+import os
 import numpy as np
 import json
 import pandas as pd
@@ -230,12 +231,14 @@ def main(cfg):
             run_gpu =  sample_idx % cfg.num_gpus
             with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
-                command = f"CUDA_VISIBLE_DEVICES={run_gpu} python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
+                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
-                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
+                env = os.environ.copy()
+                env["CUDA_VISIBLE_DEVICES"] = run_gpu
+                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f, env=env))
 
             # needed so that rewards are not overridden
             block_until_training(  # type: ignore
@@ -281,7 +284,6 @@ def main(cfg):
                     add_failure_values(stats)
                     continue
 
-                # TODO CHECK!
                 logged_train_iterations = np.array(run_log["iterations"]).shape[0]
                 step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
                 epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size

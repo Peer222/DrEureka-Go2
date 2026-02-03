@@ -5,8 +5,8 @@
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:rtx_3090:4
 
-#SBATCH -J vllm-eureka-multigpu
-#SBATCH -o slurm_logs/vllm-eureka-multigpu/%j.out
+#SBATCH -J large-vllm-eureka-multigpu
+#SBATCH -o slurm_logs/large-vllm-eureka-multigpu/%j.out
 #SBATCH --time=7-00:00:00
 
 
@@ -28,10 +28,10 @@ PORT=8000
 echo "Start server..."
 if [ "$MODEL" = "open-ai/gpt-oss-20b" ]; then
   CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" TIKTOKEN_ENCODINGS_BASE="$DATA_ROOT$MODEL/encodings" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --tensor-parallel-size 2 &
-elif [ "$MODEL" = "Qwen/Qwen3-32B-AWQ" ]; then
-  CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --tensor-parallel-size 2 &
+elif [ "$MODEL" = "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8" ]; then
+  CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --max-model-len 65536 --tensor-parallel-size 2 &
 else
-  CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --max-model-len 120000 --tensor-parallel-size 2 &
+  CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --tensor-parallel-size 2 &
 fi
 
 VLLM_PID=$!
