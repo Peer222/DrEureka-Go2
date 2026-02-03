@@ -11,7 +11,7 @@
 
 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $1 <llm-type> [open-ai/gpt-oss-20b, Qwen/Qwen3-32B-AWQ] $2 <environment>"
+    echo "Usage: $1 <llm-type> [open-ai/gpt-oss-20b, Qwen/Qwen3-32B-AWQ, Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8] $2 <environment>"
     exit 1
 fi
 
@@ -27,12 +27,13 @@ PORT=8000
 
 echo "Start server..."
 if [ "$MODEL" = "open-ai/gpt-oss-20b" ]; then
-  CUDA_VISIBLE_DEVICES=2 VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" TIKTOKEN_ENCODINGS_BASE="$DATA_ROOT$MODEL/encodings" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --max-model-len 80000 &
+  CUDA_VISIBLE_DEVICES="1,2" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" TIKTOKEN_ENCODINGS_BASE="$DATA_ROOT$MODEL/encodings" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --tensor-parallel-size 2 &
 elif [ "$MODEL" = "Qwen/Qwen3-32B-AWQ" ]; then
-  CUDA_VISIBLE_DEVICES=2 VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --max-model-len 12000 &
+  CUDA_VISIBLE_DEVICES="1,2" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --tensor-parallel-size 2 &
 else
-  CUDA_VISIBLE_DEVICES=2 VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 &
+  CUDA_VISIBLE_DEVICES="1,2" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.96 --max-num-seqs 16 --max-model-len 120000 --tensor-parallel-size 2 &
 fi
+
 VLLM_PID=$!
 echo "Server starting ($VLLM_PID)..."
 
@@ -57,6 +58,6 @@ echo ""
 
 echo "Starting Gym..."
 export WANDB_MODE="offline"
-CUDA_VISIBLE_DEVICES="0,1" python eureka.py model=$MODEL env=$2 num_gpus=2
+CUDA_VISIBLE_DEVICES=0 python eureka.py model=$MODEL env=$2
 
 kill -0 $VLLM_PID

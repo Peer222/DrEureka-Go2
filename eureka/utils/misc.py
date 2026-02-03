@@ -66,14 +66,18 @@ def block_until_queue_finished(
     processes_per_gpu: int,
     check_frequency: int = 60,
 ):
+    cur_num_running = 0
     while True:
         num_running = 0
         for p in processes:
             if p.poll() == None:
                 num_running += 1
-        if num_running < num_gpus * processes_per_gpu:
+        if num_running != cur_num_running:
+            logging.info(f"{num_running} evaluations running in queue")
+        cur_num_running = num_running
+        if num_running == 0:  # waits until the full queue finished because otherwise device mapping could be wrong -> too many runs on one gpu
             logging.info(
-                f"Process queue open: {num_running} of {num_gpus * processes_per_gpu} running. Continue."
+                f"Process queue finished Continue."
             )
             break
         time.sleep(check_frequency)
