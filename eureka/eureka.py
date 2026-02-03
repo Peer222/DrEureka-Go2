@@ -237,10 +237,10 @@ def main(cfg):
                 evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
 
             # needed so that rewards are not overridden
-            block_until_training(
+            block_until_training(  # type: ignore
                 rl_logpath,
                 success_keyword=cfg.env.success_keyword,
-                failure_keyword=cfg.env.failure_keyword,  # type: ignore
+                failure_keyword=cfg.env.failure_keyword,
                 log_status=True,
                 iter_num=iter,
                 response_id=sample_idx,
@@ -366,11 +366,14 @@ def main(cfg):
         )
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
 
+        message_type = "answer"
+        if cfg.thinking_enabled and cfg.include_thinking_in_prompt:
+            message_type = "content"
         if len(messages) == 2:
             messages += [
                 {
                     "role": "assistant",
-                    "content": samples[best_sample_idx]["message"]["answer"],
+                    "content": samples[best_sample_idx]["message"][message_type],
                 }
             ]
             messages += [{"role": "user", "content": best_content}]
@@ -378,7 +381,7 @@ def main(cfg):
             assert len(messages) == 4
             messages[-2] = {
                 "role": "assistant",
-                "content": samples[best_sample_idx]["message"]["answer"],
+                "content": samples[best_sample_idx]["message"][message_type],
             }
             messages[-1] = {"role": "user", "content": best_content}
 

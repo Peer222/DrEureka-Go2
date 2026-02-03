@@ -12,6 +12,7 @@ hydra:
 model_path: /bigwork/nhwpduep/master_thesis/models/
 model: cmd_line_argument  # original: gpt-4-0125-preview
 thinking_enabled: True  # for Qwen3 models
+include_thinking_in_prompt: False
 
 # Eureka parameters
 iteration: 5                # how many iterations of Eureka to run
