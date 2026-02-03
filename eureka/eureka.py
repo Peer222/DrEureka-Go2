@@ -58,12 +58,12 @@ def generate_samples(cfg, messages, stats):
         text = response["message"]["content"]
         thinking_content = re.search(r"<think>(.*?)</think>", text, flags=re.DOTALL)
         response["message"]["thinking"] = (
-            thinking_content.group(1) if thinking_content else "None"
+            thinking_content.group(1) if thinking_content and len(thinking_content.group(1)) else "None"
         )
         response["message"]["answer"] = re.sub(
             r"<think>.*?</think>", "", text, flags=re.DOTALL
         )
-        if len(response["message"]["thinking"]):
+        if response["message"]["thinking"] != "None":
             res = requests.post(
                 f"{vllm_host}/tokenize",
                 headers={"Content-Type": "application/json"},
