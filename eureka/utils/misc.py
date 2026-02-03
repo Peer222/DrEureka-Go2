@@ -1,27 +1,9 @@
 from typing import List
 import subprocess
-import os
-import json
 import logging
 import time
 
 from utils.extract_task_code import file_to_string  # type: ignore
-
-
-def set_freest_gpu():
-    freest_gpu = get_freest_gpu()
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(freest_gpu)
-
-
-def get_freest_gpu():
-    # Note: if this line breaks, you can provide an absolute path to gpustat instead
-    sp = subprocess.Popen(
-        ["gpustat", "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    out_str, _ = sp.communicate()
-    gpustats = json.loads(out_str.decode("utf-8"))
-    freest_gpu = min(gpustats["gpus"], key=lambda x: x["memory.used"])
-    return freest_gpu["index"]
 
 
 def filter_traceback(s):
@@ -39,8 +21,6 @@ def filter_traceback(s):
 
 def block_until_training(
     rl_filepath,
-    success_keyword,
-    failure_keyword,
     log_status=False,
     iter_num=-1,
     response_id=-1,
@@ -60,27 +40,29 @@ def block_until_training(
             break
 
 
-def block_until_queue_finished(
+def block_until_free_gpu(
     processes: List[subprocess.Popen],
+    used_gpus: List[int],
     num_gpus: int,
     processes_per_gpu: int,
     check_frequency: int = 60,
-):
-    cur_num_running = 0
+) -> int:
+    queues = {i: 0 for i in range(num_gpus)}
+    free_gpu = -1
     while True:
-        num_running = 0
-        for p in processes:
+        for gpu_idx, p in zip(used_gpus, processes):
             if p.poll() == None:
-                num_running += 1
-        if num_running != cur_num_running:
-            logging.info(f"{num_running} evaluations running in queue")
-        cur_num_running = num_running
-        if num_running == 0:  # waits until the full queue finished because otherwise device mapping could be wrong -> too many runs on one gpu
-            logging.info(
-                f"Process queue finished Continue."
-            )
+                queues[gpu_idx] += 1
+
+        for gpu_idx, num_processes in queues.items():
+            if num_processes < processes_per_gpu:
+                free_gpu = gpu_idx
+                break
+        if free_gpu >= 0:
+            logging.info(f"{queues}: Free GPU {free_gpu} -> Start next evaluation...")
             break
         time.sleep(check_frequency)
+    return free_gpu
 
 
 def construct_run_log(stdout_str):

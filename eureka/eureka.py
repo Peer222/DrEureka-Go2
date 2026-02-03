@@ -200,6 +200,8 @@ def main(cfg):
 
         # Launch all evaluations
         evaluation_runs = []
+        used_gpus = []
+        free_run_gpu: int = 0
         for sample_idx, sample in enumerate(samples):
             logging.info(f"Iteration {iter}: Processing Code Run {sample_idx}")
 
@@ -223,12 +225,8 @@ def main(cfg):
             shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
             ###
 
-            # Find the freest GPU to run GPU-accelerated RL
-            # set_freest_gpu()  # TODO not working on luis slurm cluster
-            # TODO support parallel executions again
-
             rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.txt"
-            run_gpu =  sample_idx % cfg.num_gpus
+
             with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
                 command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
@@ -237,8 +235,9 @@ def main(cfg):
                     command.append("--no-wandb")
                 logging.info(command)
                 env = os.environ.copy()
-                env["CUDA_VISIBLE_DEVICES"] = str(run_gpu)
+                env["CUDA_VISIBLE_DEVICES"] = str(free_run_gpu)
                 evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f, env=env))
+                used_gpus.append(free_run_gpu)
 
             # needed so that rewards are not overridden
             block_until_training(  # type: ignore
@@ -249,7 +248,7 @@ def main(cfg):
                 iter_num=iter,
                 response_id=sample_idx,
             )
-            block_until_queue_finished(evaluation_runs, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
+            free_run_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
         # Gather evaluation results and construct reward reflection
         contents = []  # Logs and other feedback for LLM
