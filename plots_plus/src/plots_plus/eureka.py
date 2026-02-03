@@ -36,7 +36,7 @@ def create_plots(
         x="iteration",
         y="fitness_score_max",
         hue="version",
-        ylim=(0, None),
+        ylim=(-10, None),
         filepath=graphics_dir / "fitness_score_max.png",
     )
     plots_plus.scatteredlineplot(
@@ -162,7 +162,7 @@ def create_plots(
         y="fitness_score",
         lines="sample",
         hue="iteration",
-        ylim=(0, None),
+        ylim=(-10, None),
         colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
         filepath=graphics_dir / "fitness_score.png",
     )
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         """Path to eureka rewards/metrics file"""
         result_dir: Path
         """directory in which graphics are stored"""
-        train_iterations: int = 5000
+        train_iterations: int
         """Number of iterations used for training of samples"""
 
     args = tyro.cli(Args)
