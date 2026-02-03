@@ -237,7 +237,7 @@ def main(cfg):
                     command.append("--no-wandb")
                 logging.info(command)
                 env = os.environ.copy()
-                env["CUDA_VISIBLE_DEVICES"] = run_gpu
+                env["CUDA_VISIBLE_DEVICES"] = str(run_gpu)
                 evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f, env=env))
 
             # needed so that rewards are not overridden
