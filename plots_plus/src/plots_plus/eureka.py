@@ -15,7 +15,7 @@ def create_plots(
     graphics_dir: Path,
 ):
     full_stats_df["reward_names"] = full_stats_df["reward_names"].apply(
-        ast.literal_eval
+        lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
     execution_rate_df = plots_plus.utils.to_execution_rates(full_stats_df)
     execution_rate_df["version"] = model
