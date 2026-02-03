@@ -229,7 +229,7 @@ def main(cfg):
             rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.txt"
             with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
-                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}"
+                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
                 command = command.split(" ")
                 if not cfg.use_wandb:
                     command.append("--no-wandb")

@@ -68,20 +68,18 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-    time_now = logger.utcnow(f'{wandb_group}/%Y-%m-%d_%H:%M:%S')
+    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
     logger.configure(time_now, root=str(run_dir))
     run_dir = run_dir / str(time_now)
 
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                     Cfg=vars(Cfg))
 
-    run_name = run_dir.stem
-    name_prefix = wandb_group + "/" if wandb_group is not None else ""
     wandb.init(
         dir=run_dir,
         project=wandb_project,
         entity=wandb_entity,
-        name=f"{name_prefix}{run_name}",
+        name=str(time_now),
         group=wandb_group,
         config={
             "AC_Args": vars(AC_Args),
@@ -104,7 +102,7 @@ if __name__ == '__main__':
     parser.add_argument("--no-wandb", action="store_true")
     parser.add_argument("--wandb-entity", type=str, default="peer222-luh")
     parser.add_argument("--wandb-project", type=str, default="master-thesis")
-    parser.add_argument("--wandb-group", type=str, default="forward-locomotion-go2")
+    parser.add_argument("--wandb-group", type=str, default="forward-locomotion-go2/x")
 
     parser.add_argument("--command-config", type=str, default="off", choices=["original", "constrained", "off"])
     parser.add_argument("--reward-config", type=str, required=True, choices=["original", "eureka", "eureka_original"])
