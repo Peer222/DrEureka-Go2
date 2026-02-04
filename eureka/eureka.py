@@ -273,7 +273,6 @@ def main(cfg):
             traceback_msg = filter_traceback(stdout_str)  # type: ignore
 
             if traceback_msg == "":
-                stats["execution"].append(1)
                 run_log = construct_run_log(stdout_str)  # type: ignore
                 if run_log is None:
                     logging.warning(
@@ -282,6 +281,7 @@ def main(cfg):
                     contents.append("Unknown error")
                     add_failure_values(stats)
                     continue
+                stats["execution"].append(1)
 
                 logged_train_iterations = np.array(run_log["iterations"]).shape[0]
                 step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
