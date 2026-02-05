@@ -201,7 +201,7 @@ def main(cfg):
         # Launch all evaluations
         evaluation_runs = []
         used_gpus = []
-        free_run_gpu: int = 0
+        free_eval_gpu: int = 0
         for sample_idx, sample in enumerate(samples):
             logging.info(f"Iteration {iter}: Processing Code Run {sample_idx}")
 
@@ -234,21 +234,18 @@ def main(cfg):
                 if not cfg.use_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
-                env = os.environ.copy()
-                env["CUDA_VISIBLE_DEVICES"] = str(free_run_gpu)
-                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f, env=env))
-                used_gpus.append(free_run_gpu)
+                os.environ["CUDA_VISIBLE_DEVICES"] = str(free_eval_gpu)
+                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
+                used_gpus.append(free_eval_gpu)
 
             # needed so that rewards are not overridden
             block_until_training(  # type: ignore
                 rl_logpath,
-                success_keyword=cfg.env.success_keyword,
-                failure_keyword=cfg.env.failure_keyword,
                 log_status=True,
                 iter_num=iter,
                 response_id=sample_idx,
             )
-            free_run_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
+            free_eval_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
 
         # Gather evaluation results and construct reward reflection
         contents = []  # Logs and other feedback for LLM

@@ -24,9 +24,11 @@ def block_until_training(
     log_status=False,
     iter_num=-1,
     response_id=-1,
+    check_frequency: int = 30,
 ):
     # Ensure that the RL training has started before moving on
-    while True:
+    startup_time_needed = 0
+    while startup_time_needed < 15 * 60:
         rl_log = file_to_string(rl_filepath)
         if "running" in rl_log or "Traceback" in rl_log:
             if log_status and "running" in rl_log:
@@ -38,6 +40,9 @@ def block_until_training(
                     f"Iteration {iter_num}: Code Run {response_id} execution error!"
                 )
             break
+        time.sleep(check_frequency)
+        startup_time_needed += check_frequency
+    logging.info(f"Startup time needed: {(startup_time_needed / 60):.2f}")
 
 
 def block_until_free_gpu(
@@ -47,9 +52,9 @@ def block_until_free_gpu(
     processes_per_gpu: int,
     check_frequency: int = 60,
 ) -> int:
-    queues = {i: 0 for i in range(num_gpus)}
     free_gpu = -1
     while True:
+        queues = {i: 0 for i in range(num_gpus)}
         for gpu_idx, p in zip(used_gpus, processes):
             if p.poll() == None:
                 queues[gpu_idx] += 1
