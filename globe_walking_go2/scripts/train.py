@@ -3,7 +3,7 @@ import os
 import argparse
 
 
-def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0):
+def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0"):
     import isaacgym
     assert isaacgym
     import torch
@@ -45,36 +45,31 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
         RunnerArgs.load_run = resume_path
         RunnerArgs.resume_checkpoint = os.path.join(RunnerArgs.load_run, "checkpoints", "ac_weights_last.pt")
 
-    if (Cfg.multi_gpu and int(os.getenv("LOCAL_RANK", "0")) == 0) or not Cfg.multi_gpu:
-        run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-        time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
-        logger.configure(time_now, root=str(run_dir))
-        run_dir = run_dir / str(time_now)
 
-        logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
-                        Cfg=vars(Cfg))
+    run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
+    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
+    logger.configure(time_now, root=str(run_dir))
+    run_dir = run_dir / str(time_now)
 
-        wandb.init(
-            dir=run_dir,
-            project=wandb_project,
-            entity=wandb_entity,
-            name=str(time_now),
-            group=wandb_group,
-            config={
-                "AC_Args": vars(AC_Args),
-                "PPO_Args": vars(PPO_Args),
-                "RunnerArgs": vars(RunnerArgs),
-                "Cfg": vars(Cfg),
-                "HEADLESS": headless,
-            },
-        )
+    logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
+                    Cfg=vars(Cfg))
 
+    wandb.init(
+        dir=run_dir,
+        project=wandb_project,
+        entity=wandb_entity,
+        name=str(time_now),
+        group=wandb_group,
+        config={
+            "AC_Args": vars(AC_Args),
+            "PPO_Args": vars(PPO_Args),
+            "RunnerArgs": vars(RunnerArgs),
+            "Cfg": vars(Cfg),
+            "HEADLESS": headless,
+        },
+    )
 
-    if Cfg.multi_gpu:
-        rank = int(os.getenv("LOCAL_RANK", "0"))
-        device = f'cuda:{rank}'
-    else:
-        device = 'cuda:0'
+    print(f"DEVICE: {device} vs. cuda:{torch.cuda.current_device()}")
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     env = HistoryWrapper(env)
@@ -98,9 +93,10 @@ if __name__ == '__main__':
     parser.add_argument("--reward-config", type=str, required=True, choices=["eureka", "original"])
 
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
 
     assert args.reward_config == "eureka", "Only Eureka reward is available" # TODO
 
     resume_path = None
-    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed)
+    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device)

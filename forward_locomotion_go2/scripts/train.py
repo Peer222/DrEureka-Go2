@@ -1,8 +1,9 @@
 import argparse
 from pathlib import Path
+import os
 
 def train_mc(iterations, command_config, reward_config, dr_config, eureka_target_velocity=None,
-             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0):
+             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0"):
 
     import isaacgym
     assert isaacgym
@@ -64,7 +65,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     else:
         Cfg.commands.command_curriculum = False
 
-    device = 'cuda:0'
+    print(f"DEVICE: {device}")
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
@@ -110,7 +111,8 @@ if __name__ == '__main__':
 
     parser.add_argument("--eureka-target-velocity", type=float)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
 
     train_mc(iterations=args.iterations, command_config=args.command_config, reward_config=args.reward_config, dr_config=args.dr_config, eureka_target_velocity=args.eureka_target_velocity,
-              headless=args.headless, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed)
+              headless=args.headless, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device)

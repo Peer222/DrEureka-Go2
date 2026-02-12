@@ -229,12 +229,11 @@ def main(cfg):
 
             with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
-                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
+                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
                 command = command.split(" ")
                 if not cfg.use_run_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
-                os.environ["CUDA_VISIBLE_DEVICES"] = str(free_eval_gpu)
                 evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
                 used_gpus.append(free_eval_gpu)
 

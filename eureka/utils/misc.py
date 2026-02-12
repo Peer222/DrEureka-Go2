@@ -28,7 +28,7 @@ def block_until_training(
 ):
     # Ensure that the RL training has started before moving on
     startup_time_needed = 0
-    while startup_time_needed < 15 * 60:
+    while startup_time_needed < 30 * 60:
         rl_log = file_to_string(rl_filepath)
         if "running" in rl_log or "Traceback" in rl_log:
             if log_status and "running" in rl_log:
