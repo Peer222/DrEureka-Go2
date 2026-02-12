@@ -25,5 +25,6 @@ processes_per_gpu: 2       # 3 execution failed in dry run and code stuck (origi
 
 # Weights and Biases
 use_wandb: True            # whether to use wandb for logging
+use_run_wandb: False       # whether to use wandb for logging of individual evaluation runs
 wandb_username: "peer222-luh"  # wandb username if logging with wandb
 wandb_project: "peer222-luh/master-thesis"  # wandb project if logging with wandb

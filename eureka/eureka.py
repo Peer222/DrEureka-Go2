@@ -225,13 +225,13 @@ def main(cfg):
             shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
             ###
 
-            rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.txt"
+            rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.log"
 
             with open(rl_logpath, "w") as f:
                 # Execute the python file with flags
                 command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx}"
                 command = command.split(" ")
-                if not cfg.use_wandb:
+                if not cfg.use_run_wandb:
                     command.append("--no-wandb")
                 logging.info(command)
                 os.environ["CUDA_VISIBLE_DEVICES"] = str(free_eval_gpu)
@@ -251,7 +251,7 @@ def main(cfg):
         contents = []  # Logs and other feedback for LLM
         for response_id, evaluation_run in enumerate(evaluation_runs):
             evaluation_run.communicate()
-            rl_logpath = f"logs/iteration-{iter}_sample-{response_id}.txt"
+            rl_logpath = f"logs/iteration-{iter}_sample-{response_id}.log"
             try:
                 with open(rl_logpath, "r") as f:
                     stdout_str = f.read()
@@ -397,7 +397,7 @@ def main(cfg):
     if maximum_fitness_score < 0:
         logging.info("All iterations of code generation failed, aborting...")
         logging.info(
-            "Please double check the output iteration-*_sample-*.txt files for repeating errors!"
+            "Please double check the output iteration-*_sample-*.log files for repeating errors!"
         )
         exit()
     max_reward_code_path = Path(
@@ -413,7 +413,7 @@ def main(cfg):
         file.writelines(best_reward + "\n")
 
     ### Get run directory of best-performing policy
-    max_reward_log_path = Path("logs") / f"{max_reward_code_path.stem}.txt"
+    max_reward_log_path = Path("logs") / f"{max_reward_code_path.stem}.log"
     with open(max_reward_log_path, "r") as file:
         lines = file.readlines()
     for line in lines:
