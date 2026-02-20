@@ -389,11 +389,11 @@ def main(cfg):
         full_metrics.append(iteration_metrics)
         with open("metrics.json", "w") as f:
             json.dump(full_metrics, f)
+        logging.info(stats)
         stats = pd.DataFrame(stats)
         stats["iteration"] = iter
         stats["sample"] = stats.index
         stats["version"] = f"{cfg.model}_{TIMESTAMP}"
-        logging.info(stats)
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
         # Select the best code sample based on the success rate
