@@ -59,7 +59,9 @@ def generate_samples(cfg, messages, stats):
         text = response["message"]["content"]
         thinking_content = re.search(r"<think>(.*?)</think>", text, flags=re.DOTALL)
         response["message"]["thinking"] = (
-            thinking_content.group(1) if thinking_content and len(thinking_content.group(1)) else "None"
+            thinking_content.group(1)
+            if thinking_content and len(thinking_content.group(1))
+            else "None"
         )
         response["message"]["answer"] = re.sub(
             r"<think>.*?</think>", "", text, flags=re.DOTALL
@@ -118,8 +120,8 @@ def main(cfg):
     logging.info("Task description: " + cfg.env.description)
 
     maximum_fitness_score = -1
-    maximum_sample = -1
     maximum_iteration = -1
+    maximum_sample = -1
 
     full_stats = pd.DataFrame()
     full_metrics = []
@@ -172,8 +174,50 @@ def main(cfg):
         {"role": "user", "content": initial_user},
     ]
 
+    last_complete_iteration = -1
+    if cfg.resume:
+        logging.info(f"Resume from stats file: {cfg.stats_file}")
+        full_stats = pd.read_csv(cfg.stats_file)
+        last_complete_iteration = len(full_stats) // cfg.sample - 1
+        logging.info(f"Last complete iteration: {last_complete_iteration}")
+        best_idx = full_stats[
+            full_stats["iteration"] <= last_complete_iteration
+        ].idxmax(numeric_only=True)["fitness_score_max"]  # type: ignore
+        logging.info(f"Best Index: {best_idx}")
+        maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
+        maximum_iteration = full_stats.iloc[best_idx]["iteration"]
+        maximum_sample = full_stats.iloc[best_idx]["sample"]
+
+        best_current_idx = full_stats[
+            full_stats["iteration"] == last_complete_iteration
+        ].idxmax(numeric_only=True)["fitness_score_max"]  # type: ignore
+        logging.info(f"Best Index of last iteration: {best_current_idx}")
+        best_current_sample = full_stats.iloc[best_current_idx]["sample"]
+        if last_complete_iteration > 0:
+            with open(
+                Path(cfg.stats_file).parent
+                / "chats"
+                / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.md",
+                "r",
+            ) as f:
+                text = f.read()
+                chat_messages = re.search(
+                    r"## assistant:\n(.*?)\n\n## user:\n(.*?) ---------- \n## assistant:",
+                    text,
+                    flags=re.DOTALL,
+                )
+                if chat_messages:
+                    llm_reward_generation = chat_messages.group(1).strip()
+                    logging.info(f"{llm_reward_generation=}")
+                    reward_reflection = chat_messages.group(2).strip()
+                    logging.info(f"{reward_reflection=}")
+                    messages.append(
+                        {"role": "assistant", "content": llm_reward_generation}
+                    )
+                    messages.append({"role": "user", "content": reward_reflection})
+
     # Eureka generation loop
-    for iter in range(cfg.iteration):
+    for iter in range(last_complete_iteration + 1, cfg.iteration):
         logging.info(f"Iteration {iter}: Generating {cfg.sample} samples")
 
         stats = {
@@ -262,6 +306,7 @@ def main(cfg):
                 content += code_output_tip
                 contents.append(content)
                 add_failure_values(stats)
+                iteration_metrics.append({})
                 logging.error(f"ERROR: Could not open/read {rl_logpath}")
                 continue
 
@@ -276,6 +321,7 @@ def main(cfg):
                     )
                     contents.append("Unknown error")
                     add_failure_values(stats)
+                    iteration_metrics.append({})
                     continue
                 stats["execution"].append(1)
 
@@ -332,6 +378,7 @@ def main(cfg):
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)
+                iteration_metrics.append({})
                 logging.warning(
                     f"WARNING: Failed code execution of {response_id}: {traceback_msg}"
                 )
@@ -340,12 +387,15 @@ def main(cfg):
             contents.append(content)
 
         full_metrics.append(iteration_metrics)
-        logging.info(stats)
+        with open("metrics.json", "w") as f:
+            json.dump(full_metrics, f)
         stats = pd.DataFrame(stats)
         stats["iteration"] = iter
+        stats["sample"] = stats.index
         stats["version"] = f"{cfg.model}_{TIMESTAMP}"
-        full_stats = pd.concat([full_stats, stats])
-        full_stats.to_csv("stats.csv")
+        logging.info(stats)
+        full_stats = pd.concat([full_stats, stats], ignore_index=True)
+        full_stats.to_csv("stats.csv", index=False)
         # Select the best code sample based on the success rate
         best_sample_idx = np.argmax(stats["fitness_score_max"])
         best_content = contents[best_sample_idx]
@@ -392,6 +442,10 @@ def main(cfg):
     with open("metrics.json", "w") as f:
         json.dump(full_metrics, f)
 
+    if cfg.resume:
+        logging.info("Resumed training finished!")
+        return
+
     ###
     if maximum_fitness_score < 0:
         logging.info("All iterations of code generation failed, aborting...")
@@ -428,7 +482,9 @@ def main(cfg):
     metrics_df = plots_plus.utils.convert_metric_series(
         full_metrics, cfg.env.train_iterations
     )
-    plots_plus.eureka.create_plots(cfg.model, full_stats, metrics_df, workspace_dir / "graphics")
+    plots_plus.eureka.create_plots(
+        cfg.model, full_stats, metrics_df, workspace_dir / "graphics"
+    )
 
 
 if __name__ == "__main__":

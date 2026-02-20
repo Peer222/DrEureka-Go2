@@ -28,3 +28,7 @@ use_wandb: True            # whether to use wandb for logging
 use_run_wandb: False       # whether to use wandb for logging of individual evaluation runs
 wandb_username: "peer222-luh"  # wandb username if logging with wandb
 wandb_project: "peer222-luh/master-thesis"  # wandb project if logging with wandb
+
+# resume eureka run from intermediate result
+resume: False
+stats_file: cmd_line_argument
