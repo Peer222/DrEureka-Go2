@@ -1,46 +1,44 @@
 import isaacgym
+
 assert isaacgym
 
-import argparse
 import sys
+import importlib
+
 import torch
-import numpy as np
-import glob
 import pickle as pkl
-import os
 import yaml
 import shutil
-import wandb
+from pathlib import Path
+import pandas as pd
 
-from go2_gym.envs import *  # type: ignore
-from go2_gym.envs.base.legged_robot_config import Cfg
-from go2_gym.envs.go2.go2_config import config_go2
-from go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
+from globe_walking_go2.go2_gym.envs import *  # type: ignore
+from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
+from globe_walking_go2.go2_gym.envs.go2.go2_config import config_go2
+from globe_walking_go2.go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
+from globe_walking_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
+from globe_walking_go2.go2_gym import MINI_GYM_ROOT_DIR
 
-from tqdm import tqdm
+from plots_plus import rollout
+from dataclasses import dataclass
+from typing import Literal
+import tyro
 
-def load_policy(label):
-    body = torch.jit.load(label + '/body_latest.jit', map_location="cpu")  # type: ignore
-    adaptation_module = torch.jit.load(label + '/adaptation_module_latest.jit', map_location='cpu')  # type: ignore
 
-    # Alternative loading method using wandb
-    if False:
-        body_file = wandb.restore('tmp/legged_data/body_68000.jit', run_path=label)
-        body = torch.jit.load(body_file.name)
-        adaptation_module_file = wandb.restore('tmp/legged_data/adaptation_module_68000.jit', run_path=label)
-        adaptation_module = torch.jit.load(adaptation_module_file.name)
+def load_policy(checkpoint_path: Path):
+    body = torch.jit.load(checkpoint_path / "body_latest.jit", map_location="cpu")  # type: ignore
+    adaptation_module = torch.jit.load(checkpoint_path / "adaptation_module_latest.jit", map_location="cpu")  # type: ignore
 
     def policy(obs, info={}):
-        i = 0
-        latent = adaptation_module.forward(obs["obs_history"].to('cpu'))
-        action = body.forward(torch.cat((obs["obs_history"].to('cpu'), latent), dim=-1))
-        info['latent'] = latent
+        latent = adaptation_module.forward(obs["obs_history"].to("cpu"))
+        action = body.forward(torch.cat((obs["obs_history"].to("cpu"), latent), dim=-1))
+        info["latent"] = latent
         return action
 
     return policy
 
 
-def load_env(label, headless=False, dr_config="off", save_video=True):
+def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True):
     # Will be overwritten by the loaded config from parameters.pkl
     Cfg.env = Cfg.env_mini  # type: ignore
     Cfg.sensors = Cfg.sensors_mini
@@ -48,27 +46,37 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
     Cfg.domain_rand = Cfg.domain_rand_off  # type: ignore
     Cfg.sim.physx = Cfg.sim.physx_mini  # type: ignore
 
-    config_go2(Cfg)
-    if os.path.exists(label + "/config.yaml"):
-        with open(label + "/config.yaml", 'rb') as file: 
+    config_go2(Cfg)  # type: ignore
+    if (checkpoint_path / "config.yaml").exists():
+        with open(checkpoint_path / "config.yaml", "rb") as file:
             cfg = yaml.safe_load(file)
             cfg = cfg["Cfg"]
-    elif os.path.exists(label + "/../parameters.pkl"):
-        with open(label + "/../parameters.pkl", 'rb') as file:
+    elif (checkpoint_path / "../parameters.pkl").exists():
+        with open(checkpoint_path / "../parameters.pkl", "rb") as file:
             pkl_cfg = pkl.load(file)
             cfg = pkl_cfg["Cfg"]
     else:
-        # Load from wandb, currently unused and expected to fail
-        cfg_file = wandb.restore('config.yaml', run_path=label)
-        with open(cfg_file.name, 'rb') as file:  # type: ignore
-            cfg = yaml.safe_load(file)
-            cfg = cfg["Cfg"]["value"]
-        
+        raise Exception(
+            f"Missing {checkpoint_path / 'config.yaml'} or {checkpoint_path / '../parameters.pkl'}"
+        )
+
     def set_cfg_recursive(cfg, load):
         for key, value in load.items():
             if not hasattr(cfg, key):
                 continue
-            if dr_config != "load" and key in ["env_mini", "env_full", "sensors_mini", "sensors_full", "terrain_mini", "terrain_full", "domain_rand_mini", "domain_rand_full", "domain_rand_eureka", "physx_mini", "physx_full"]:
+            if dr_config != "load" and key in [
+                "env_mini",
+                "env_full",
+                "sensors_mini",
+                "sensors_full",
+                "terrain_mini",
+                "terrain_full",
+                "domain_rand_mini",
+                "domain_rand_full",
+                "domain_rand_eureka",
+                "physx_mini",
+                "physx_full",
+            ]:
                 # Don't overwrite presets from Cfg
                 continue
             if key in ["pos", "ball_init_pos"]:
@@ -80,6 +88,7 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
                 # if value != getattr(cfg, key):
                 #     print(f"Overwriting {key} from {getattr(cfg, key)} to {value}")
                 setattr(cfg, key, value)
+
     set_cfg_recursive(Cfg, cfg)
     Cfg.multi_gpu = False
 
@@ -131,11 +140,16 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
     if False:
         print("> Mass test: ball should be immovable")
         Cfg.domain_rand.ball_mass_range = [1000.0, 1000.0]
-        Cfg.domain_rand.terrain_tile_roughness_range = [0.0, 0.0]     # Disable terrain so balls don't move due to gravity
+        Cfg.domain_rand.terrain_tile_roughness_range = [
+            0.0,
+            0.0,
+        ]  # Disable terrain so balls don't move due to gravity
         Cfg.domain_rand.ball_push_vel_range = [0.0, 0.0]
         Cfg.domain_rand.gravity_range = [0.0, 0.0]
     if False:
-        print("> Radius test: balls should be big and vary in size, quadrupeds should spawn perfectly on top")
+        print(
+            "> Radius test: balls should be big and vary in size, quadrupeds should spawn perfectly on top"
+        )
         Cfg.domain_rand.ball_radius_range = [0.0, 2.0]
     if False:
         print("> Restitution test 1: UNSTABLE IN PUBLIC ISAACGYM")
@@ -152,7 +166,7 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
         print("> Restitution test 2: UNSTABLE IN PUBLIC ISAACGYM")
         ball_restitution_range = [0.0, 0.0]
         Cfg.domain_rand.terrain_ground_restitution_range = [0.0, 0.0]
-    if False: 
+    if False:
         print("> Compliance test: NOT IMPLEMENTED IN PUBLIC ISAACGYM")
         Cfg.domain_rand.ball_compliance_range = [10.0, 10.0]
     if False:
@@ -171,7 +185,9 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
         Cfg.terrain.x_init_range = 0.0
         Cfg.terrain.y_init_range = 0.0
     if False:
-        print("> Payload test: quadruped leg should be more bent, unable to support itself")
+        print(
+            "> Payload test: quadruped leg should be more bent, unable to support itself"
+        )
         Cfg.domain_rand.robot_payload_mass_range = [10.0, 10.0]
     if False:
         print("> CoM test: quadruped should tilt to one side")
@@ -185,107 +201,190 @@ def load_env(label, headless=False, dr_config="off", save_video=True):
         print("> Spring coefficient test: robot's feet should bounce off the ball")
         Cfg.domain_rand.ball_spring_coefficient_range = [0.7, 0.7]
 
-    from globe_walking.go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
-
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)  # type: ignore
+    env = VelocityTrackingEasyEnv(sim_device="cuda:0", headless=headless, cfg=Cfg)  # type: ignore
     env = HistoryWrapper(env)
 
-    policy = load_policy(label)
+    policy = load_policy(checkpoint_path)
     return env, policy
 
 
-def play_go2(iterations, headless=True, label=None, dr_config="off", verbose=False, save_video=False):
-    label = os.path.join(label or "", "checkpoints")
-    env, policy = load_env(label, headless=headless, dr_config=dr_config)
+def play_go2(
+    run_path: Path,
+    headless=True,
+    dr_config="off",
+    save_video=False,
+    num_rollouts: int = 1,
+):
+    checkpoint_path = run_path / "checkpoints"
+    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config)
 
-    measured_x_vels = np.zeros(iterations)
-    measured_global_x_vels = np.zeros(iterations)
-    joint_positions = np.zeros((iterations, 12))
-    foot_contact_forces = np.zeros((iterations, 4))
-    torques = np.zeros((iterations, 12))
+    all_stats_df = pd.DataFrame()
+    for rollout_index in range(num_rollouts):
+        if save_video:
+            import imageio
 
-    if save_video:
-        import imageio
-        mp4_writer = imageio.get_writer('globe_walking.mp4', fps=50)
+            mp4_writer = imageio.get_writer("globe_walking.mp4", fps=50)
 
-    obs = env.reset()
-    ep_rew = 0
-    for i in tqdm(range(iterations)):
-        with torch.no_grad():
-            actions = policy(obs)
-        obs, rew, done, info = env.step(actions)
-        if verbose:
-            print(f"z-position: {env.base_pos[0, 2]}")
-        measured_x_vels[i] = env.base_lin_vel[0, 0]
-        measured_global_x_vels[i] = env.root_states[0, 7]
-        joint_positions[i] = env.dof_pos[0, :].cpu()
-        foot_contact_forces[i] = torch.norm(env.contact_forces[0, env.feet_indices, :], dim=-1).cpu()
-        torques[i] = env.torques[0, :].detach().cpu()
-        ep_rew += rew
+        obs = env.reset()
+
+        episode_length = 0
+        episode_reward = 0
+        time_steps = []
+        accumulated_rewards = []
+        positions = []
+        linear_velocities = []
+        angular_velocities = []
+        global_linear_velocities = []
+        global_angular_velocities = []
+
+        foot_contact_forces = []
+        joint_positions = []
+        torques = []
+        out_of_limits = []
+
+        robot_idx = env.robot_actor_idxs.item()
+        done = torch.tensor(0)
+        while True:
+            if save_video:
+                img = env.render(mode="rgb_array")
+                mp4_writer.append_data(img)  # type: ignore
+            with torch.no_grad():
+                actions = policy(obs)
+            time_steps.append(episode_length * env.dt)
+            accumulated_rewards.append(
+                {f"rew_{k}": v.item() for k, v in env.episode_sums.items()}
+            )
+            positions.append(env.root_states[robot_idx, 0:3].tolist())
+            linear_velocities.append(env.base_lin_vel[robot_idx, :].tolist())
+            angular_velocities.append(env.base_ang_vel[robot_idx, :].tolist())
+            global_linear_velocities.append(env.root_states[robot_idx, 7:10].tolist())
+            global_angular_velocities.append(env.root_states[robot_idx, 10:13].tolist())
+            foot_contact_forces.append(
+                torch.norm(
+                    env.contact_forces[robot_idx, env.feet_indices, :], dim=-1
+                ).tolist()
+            )
+            joint_positions.append(
+                (env.dof_pos[robot_idx, :] * 57.2958).tolist()
+            )  # radiant to degrees
+            torques.append(env.torques[robot_idx, :].tolist())
+            out_of_limits.append(
+                (
+                    -(env.dof_pos - env.dof_pos_limits[:, 0]).clip(max=0.0)
+                    + (env.dof_pos - env.dof_pos_limits[:, 1]).clip(min=0.0)
+                )
+                .count_nonzero()
+                .item()
+            )
+
+            if done.any():  # type: ignore
+                break
+            obs, rew, done, info = env.step(actions)
+            episode_reward += rew
+            episode_length += 1
 
         if save_video:
-            img = env.render(mode='rgb_array')
-            mp4_writer.append_data(img)  # type: ignore
+            mp4_writer.close()  # type: ignore
+            video_dir_path = checkpoint_path / "../videos"
+            video_dir_path.mkdir(exist_ok=True)
+            shutil.move(
+                "globe_walking.mp4", video_dir_path / f"final-{rollout_index}.mp4"
+            )
+            # rounding performed to reduce file size
+            time_steps_df = pd.DataFrame(time_steps, columns=["time_(s)"]).round(2)
+            accumulated_rewards_df = pd.DataFrame(accumulated_rewards).round(2)
+            positions_df = pd.DataFrame(positions, columns=["x", "y", "z"]).round(2)
+            linear_velocities_df = pd.DataFrame(
+                linear_velocities, columns=["linear_x", "linear_y", "linear_z"]
+            ).round(2)
+            angular_velocities_df = pd.DataFrame(
+                angular_velocities, columns=["angular_x", "angular_y", "angular_z"]
+            ).round(2)
+            global_linear_velocities_df = pd.DataFrame(
+                global_angular_velocities,
+                columns=["global_linear_x", "global_linear_y", "global_linear_z"],
+            ).round(2)
+            global_angular_velocities_df = pd.DataFrame(
+                global_angular_velocities,
+                columns=["global_angular_x", "global_angular_y", "global_angular_z"],
+            ).round(2)
+            foot_contact_forces_df = pd.DataFrame(
+                foot_contact_forces,
+                columns=["front_left", "front_right", "rear_left", "rear_right"],
+            ).round(1)
+            joint_positions_df = pd.DataFrame(
+                joint_positions, columns=[f"position_{n}" for n in env.dof_names]
+            ).round(1)
+            torques_df = pd.DataFrame(
+                torques, columns=[f"torque_{n}" for n in env.dof_names]
+            ).round(1)
+            out_of_limits_df = pd.DataFrame(out_of_limits, columns=["out_of_limits"])
 
-        out_of_limits = -(env.dof_pos - env.dof_pos_limits[:, 0]).clip(max=0.)
-        out_of_limits += (env.dof_pos - env.dof_pos_limits[:, 1]).clip(min=0.)
+            stats_df = pd.concat(
+                [
+                    time_steps_df,
+                    accumulated_rewards_df,
+                    positions_df,
+                    linear_velocities_df,
+                    angular_velocities_df,
+                    global_linear_velocities_df,
+                    global_angular_velocities_df,
+                    foot_contact_forces_df,
+                    joint_positions_df,
+                    torques_df,
+                    out_of_limits_df,
+                ],
+                axis=1,
+            )
+            stats_df["rollout"] = rollout_index
+            # save only every second data point for reduced file size
+            stats_df = stats_df.iloc[::2]
+            all_stats_df = pd.concat([all_stats_df, stats_df])
 
     if save_video:
-        mp4_writer.close()  #type: ignore
-        video_dir_path = os.path.join(label, "../videos")
-        if not os.path.exists(video_dir_path):
-            os.makedirs(video_dir_path)
-        shutil.move("globe_walking.mp4", os.path.join(video_dir_path, "play.mp4"))
-
-        # plot target and measured forward velocity
-        np.savez(os.path.join(video_dir_path, "plot_data.npz"),
-                measured_x_vels=measured_x_vels, joint_positions=joint_positions, foot_contact_forces=foot_contact_forces, torques=torques)
-
-        from matplotlib import pyplot as plt
-        fig, axs = plt.subplots(5, 1, figsize=(12, 12))
-        axs[0].plot(np.linspace(0, iterations * env.dt, iterations), measured_x_vels, color='black', linestyle="-", label="Measured")
-        axs[0].legend()
-        axs[0].set_title("Forward Linear Velocity")
-        axs[0].set_xlabel("Time (s)")
-        axs[0].set_ylabel("Velocity (m/s)")
-
-        axs[1].plot(np.linspace(0, iterations * env.dt, iterations), measured_global_x_vels, color='black', linestyle="-", label="Measured")
-        axs[1].legend()
-        axs[1].set_title("Global Forward Linear Velocity")
-        axs[1].set_xlabel("Time (s)")
-        axs[1].set_ylabel("Velocity (m/s)")
-
-        axs[2].plot(np.linspace(0, iterations * env.dt, iterations), joint_positions, linestyle="-", label="Measured")
-        axs[2].set_title("Joint Positions")
-        axs[2].set_xlabel("Time (s)")
-        axs[2].set_ylabel("Joint Position (rad)")
-
-        axs[3].plot(np.linspace(0, iterations * env.dt, iterations), foot_contact_forces, linestyle="-", label="Measured")
-        axs[3].set_title("Foot Contact Forces")
-        axs[3].set_xlabel("Time (s)")
-        axs[3].set_ylabel("Force (N)")
-
-        axs[4].plot(np.linspace(0, iterations * env.dt, iterations), torques, linestyle="-", label="Measured")
-        axs[4].set_title("Torques")
-        axs[4].set_xlabel("Time (s)")
-        axs[4].set_ylabel("Torque (Nm)")
-        axs[4].legend(env.dof_names)
-
-        plt.tight_layout()
-
-        plt.savefig(os.path.join(video_dir_path, "plot.png"))
-        if not headless:
-            plt.show()
+        all_stats_df.to_csv(checkpoint_path / ".." / "rollout_stats.csv")
+        rollout.create_plots(
+            all_stats_df, checkpoint_path / ".." / "graphics", env="globe_walking_go2"
+        )
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--run', type=str, default=None)
-    parser.add_argument("--iterations", type=int, default=1000)
-    parser.add_argument('--headless', action='store_true')
-    parser.add_argument("--dr-config", type=str, required=True, choices=["mini", "full", "eureka", "off", "load"])
-    parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--no-video", action="store_true")
-    args = parser.parse_args()
+if __name__ == "__main__":
 
-    play_go2(iterations=args.iterations, headless=args.headless, label=args.run, dr_config=args.dr_config, verbose=args.verbose, save_video=not args.no_video)
+    @dataclass
+    class Args:
+        run: Path
+        """run directory from which checkpoints are loaded"""
+        dr_config: Literal["mini", "full", "eureka", "off", "load"]
+        """Domain randomization config"""
+        load_reward: bool = False
+        """Load reward file from associated eureka run"""
+        num_rollouts: int = 1
+        """Number of rollouts that are performed"""
+        headless: bool = False
+        """Play in headless mode"""
+        no_video: bool = False
+        """If set, no video is recorded"""
+
+    args = tyro.cli(Args)
+
+    if args.load_reward:
+        iteration_idx = args.run.parent.stem
+        sample_idx = args.run.stem[0]
+        reward_path = (
+            args.run.parents[1]
+            / "rewards"
+            / f"iteration-{iteration_idx}_sample-{sample_idx}.py"
+        )
+        shutil.copyfile(
+            reward_path,
+            Path(MINI_GYM_ROOT_DIR) / "go2_gym" / "rewards" / "eureka_reward.py",
+        )
+        print(f"{reward_path=}")
+
+    play_go2(
+        run_path=args.run,
+        dr_config=args.dr_config,
+        num_rollouts=args.num_rollouts,
+        headless=args.headless,
+        save_video=not args.no_video,
+    )

@@ -34,22 +34,25 @@ def scatterplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: List = LLM_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap] = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
+    style: Optional[str] = None,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
     if hue:
         hue = clean_variable(hue)
+    if style:
+        style = clean_variable(style)
 
     plt.figure(figsize=(10, 7))
     ax = sns.scatterplot(
-        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
+        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
     )
 
     ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
@@ -58,9 +61,9 @@ def scatterplot(
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
-    ax.grid(True, color=Color.LIGHT_GREY)
-    # for eval iterations. Otherwise has to be adapted
-    ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
+    ax.grid(True, color=Color.SUBTLE_GREY)
+    if x == "Iteration":
+        ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
     if title:
         plt.title(title)
@@ -73,21 +76,30 @@ def lineplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: List = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
+    style: Optional[str] = None,
+    alpha: float = 1.0,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
     if hue:
         hue = clean_variable(hue)
+    if style:
+        style = clean_variable(style)
 
     plt.figure(figsize=(10, 7))
-    ax = sns.lineplot(df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order)
+    ax = sns.lineplot(
+        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
+    )
+
+    for line in ax.lines:
+        line.set_alpha(alpha)
 
     ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
     ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
@@ -95,7 +107,7 @@ def lineplot(
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
-    ax.grid(True, color=Color.LIGHT_GREY)
+    ax.grid(True, color=Color.SUBTLE_GREY)
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
@@ -110,7 +122,7 @@ def scatteredlineplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: List = LLM_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap] = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
@@ -137,7 +149,7 @@ def scatteredlineplot(
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
-    ax.grid(True, color=Color.LIGHT_GREY)
+    ax.grid(True, color=Color.SUBTLE_GREY)
     # for eval iterations. Otherwise has to be adapted
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
@@ -153,7 +165,7 @@ def multilineplot(
     y: str,
     lines: str,
     hue: Optional[str] = None,
-    colorpalette: List = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
@@ -172,7 +184,7 @@ def multilineplot(
     ax = None
     plt.figure(figsize=(10, 7))
     for v in df[lines].drop_duplicates():
-        filtered_df = df[df[lines] == v]
+        filtered_df: pd.DataFrame = df[df[lines] == v]  # type: ignore
         ax = sns.lineplot(
             filtered_df, x=x, y=y, hue=hue, hue_order=hue_order, palette=colorpalette
         )
@@ -188,7 +200,7 @@ def multilineplot(
     ax.tick_params(direction="in", length=0)
     ax.set_axisbelow(True)
     sns.despine(left=True, bottom=True, right=True, top=True)
-    ax.grid(True, color=Color.LIGHT_GREY)
+    ax.grid(True, color=Color.SUBTLE_GREY)
     if x == "Iteration":
         ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 
@@ -215,7 +227,7 @@ def gridlineplot(
     y: str,
     hue: str,
     axes: str,
-    colorpalette: List = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
@@ -263,7 +275,7 @@ def gridlineplot(
         ax.tick_params(direction="in", length=0)
         ax.set_axisbelow(True)
         sns.despine(left=True, bottom=True, right=True, top=True)
-        ax.grid(True, color=Color.LIGHT_GREY)
+        ax.grid(True, color=Color.SUBTLE_GREY)
         if x == "Iteration":
             ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
 

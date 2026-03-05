@@ -63,22 +63,26 @@ def load_metric_series(filepath: Path, train_iterations: int) -> pd.DataFrame:
         return convert_metric_series(rewards, train_iterations)
 
 
-def rotate_df(df: pd.DataFrame, x: str, ys: List[str], ylabel: str) -> pd.DataFrame:
+def rotate_df(
+    df: pd.DataFrame, x: Union[str, List[str]], ys: List[str], ylabel: str
+) -> pd.DataFrame:
     """Rotates df und returns df with x, "type", and ylabel column
     Type column is cleaned with clean_variable()
 
     Args:
         df (pd.DataFrame): Stats DataFrame
-        x (str): column name for x plotting value
+        x (str): column name for x plotting value and eventually hues/styles
         ys (List[str]): Columns to stack onto each other
         ylabel (str): Label of new y column
 
     Returns:
         pd.DataFrame: DataFrame with columns: x, "type", ylabel
     """
+    if isinstance(x, str):
+        x = [x]
     new_df = pd.DataFrame()
     for y in ys:
-        partial_df = df[[x, y]].rename({y: ylabel}, axis=1)
+        partial_df = df[[*x, y]].rename({y: ylabel}, axis=1)
         partial_df["type"] = clean_variable(y)
         new_df = pd.concat([new_df, partial_df])
     return new_df

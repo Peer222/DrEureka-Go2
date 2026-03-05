@@ -1,4 +1,3 @@
-import sys
 import os 
 import argparse
 
@@ -18,6 +17,7 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     from globe_walking_go2.go2_gym_learn.ppo_cse.actor_critic import AC_Args
     from globe_walking_go2.go2_gym_learn.ppo_cse.ppo import PPO_Args
     from globe_walking_go2.go2_gym_learn.ppo_cse import RunnerArgs
+    from globe_walking_go2.scripts.play import play_go2
 
     from ml_logger import logger
 
@@ -69,12 +69,14 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
         },
     )
 
-    print(f"DEVICE: {device} vs. cuda:{torch.cuda.current_device()}")
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     env = HistoryWrapper(env)
     runner = Runner(env, device=device, multi_gpu=Cfg.multi_gpu)
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100)
+
+    # log video of trained policy rollout
+    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True)
 
 
 if __name__ == '__main__':
