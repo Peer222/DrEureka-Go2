@@ -1,4 +1,4 @@
-The following video shows multiple rollouts of a quadruped robot trying to locomote forwards (straight). The robot's policy shall be deployed safely in the real world. Therefore, the robot should have a stable position and controlled movements. Analyze the recording as follows:  
+The following video shows a rollout of a quadruped robot trying to locomote forwards (straight). The robot's policy shall be deployed safely in the real world. Therefore, the robot should have a stable position and controlled movements. Analyze the recording as follows:  
     (1) Describe the movements of the robot sequentially and in detail. Especially look into the leg and foot positions and dynamics.  
     (2) Describe the gait of the quadruped robot.
     (4) Summarize your findings.  
