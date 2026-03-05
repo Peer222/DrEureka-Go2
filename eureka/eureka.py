@@ -31,6 +31,7 @@ def generate_samples(cfg, messages, stats):
     openai.api_base = f"{vllm_host}/v1"
 
     responses = []
+    num_prev_prompts = len(stats["prompt_tokens"])
 
     for s in range(cfg.sample):
         response = None
@@ -76,12 +77,14 @@ def generate_samples(cfg, messages, stats):
                 },
             )
             stats["thinking_tokens"].append(
-                stats["completion_tokens"][i] - res.json()["count"]
+                stats["completion_tokens"][i + num_prev_prompts] - res.json()["count"]
             )
             stats["answer_tokens"].append(res.json()["count"])
         else:
             stats["thinking_tokens"].append(0)
-            stats["answer_tokens"].append(stats["completion_tokens"][i])
+            stats["answer_tokens"].append(
+                stats["completion_tokens"][i + num_prev_prompts]
+            )
     return responses, stats
 
 
@@ -181,16 +184,20 @@ def main(cfg):
         last_complete_iteration = len(full_stats) // cfg.sample - 1
         logging.info(f"Last complete iteration: {last_complete_iteration}")
         best_idx = full_stats[
-            full_stats["iteration"] <= last_complete_iteration
-        ].idxmax(numeric_only=True)["fitness_score_max"]  # type: ignore
+            full_stats["iteration"] <= last_complete_iteration  # type: ignore
+        ].idxmax(numeric_only=True)[
+            "fitness_score_max"
+        ]
         logging.info(f"Best Index: {best_idx}")
         maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
         maximum_iteration = full_stats.iloc[best_idx]["iteration"]
         maximum_sample = full_stats.iloc[best_idx]["sample"]
 
         best_current_idx = full_stats[
-            full_stats["iteration"] == last_complete_iteration
-        ].idxmax(numeric_only=True)["fitness_score_max"]  # type: ignore
+            full_stats["iteration"] == last_complete_iteration  # type: ignore
+        ].idxmax(numeric_only=True)[
+            "fitness_score_max"
+        ]
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         if last_complete_iteration > 0:
