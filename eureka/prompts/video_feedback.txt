@@ -1,0 +1,5 @@
+A critique watched the rollout of the trained policy in simulation.  
+The critique analyzes the video as follows:  
+{critique_feedback}  
+  
+Additionally, rethink and eventually refine your reward functions based on these observations.

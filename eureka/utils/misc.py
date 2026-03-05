@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Dict
 import subprocess
 import logging
 import time
+from pathlib import Path
+import cv2
 
 from utils.extract_task_code import file_to_string  # type: ignore
 
@@ -95,3 +97,42 @@ def construct_run_log(stdout_str):
         return None
 
     return run_log
+
+
+def prepare_video_message(frame_dir: Path, fps: int) -> List[Dict[str, str]]:
+    frames = frame_dir.glob("*.jpg")
+    video_message = []
+    i = -1
+    for i, frame in enumerate(frames):
+        video_message.append({"type": "text", "text": f"<{i/fps:.2f} seconds>"})
+        video_message.append(
+            {"type": "image_url", "image_url": {"url": f"file://{str(frame.absolute())}"}}
+        )
+    logging.info(f"Number of frames: {i+1}")
+    return video_message
+
+
+def extract_frames(video_path: Path, frame_dir: Path, fps: int, max_video_length: int):
+    frame_dir.mkdir(exist_ok=True)
+    old_frames = frame_dir.glob("*.jpg")
+    for frame in old_frames:
+        frame.unlink()
+
+    video = cv2.VideoCapture(video_path)
+    original_fps = video.get(cv2.CAP_PROP_FPS)
+    frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+    duration = frame_count / original_fps
+    max_frames = (max_video_length / duration) * frame_count
+    step = original_fps // fps
+    logging.info(f"Final Video: {original_fps=}, {fps=}, {step=}")
+    i = 0
+    while video.isOpened():
+        ret, frame = video.read()
+        if not ret:
+            break
+        if i % step == 0 and frame_count - i < max_frames:
+            cv2.imwrite(frame_dir / f"{video_path.stem}-{i:04d}.jpg", frame)
+        i += 1
+
+    video.release()
+    cv2.destroyAllWindows()

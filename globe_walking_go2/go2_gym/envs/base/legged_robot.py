@@ -14,10 +14,8 @@ from globe_walking_go2.go2_gym.utils.math_utils import quat_apply_yaw, wrap_to_p
 from globe_walking_go2.go2_gym.utils.terrain import Terrain, perlin
 from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
-from globe_walking_go2.go2_gym.rewards.eureka_reward import EurekaReward
-from globe_walking_go2.go2_gym.rewards.eureka_original_reward import EurekaOriginalReward
-
 import logging
+
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless,
@@ -1335,6 +1333,9 @@ class LeggedRobot(BaseTask):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.
             Looks for self._reward_<REWARD_NAME>, where <REWARD_NAME> are names of all non zero reward scales in the cfg.
         """
+        # imported here to update the file eventually in advance
+        from globe_walking_go2.go2_gym.rewards.eureka_reward import EurekaReward
+        from globe_walking_go2.go2_gym.rewards.eureka_original_reward import EurekaOriginalReward
         # reward containers
         reward_containers = {
             "EurekaReward": EurekaReward,
