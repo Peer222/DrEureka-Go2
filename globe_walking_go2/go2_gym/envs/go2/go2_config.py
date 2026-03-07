@@ -56,7 +56,7 @@ def config_go2(Cnfg: Cfg):
     _.use_terminal_body_height = True
 
     _ = Cnfg.terrain
-    _.mesh_type = 'trimesh'
+    _.mesh_type = 'trimesh' # or plane
     _.measure_heights = False
     _.terrain_noise_magnitude = 0.0
     _.teleport_robots = True

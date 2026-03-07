@@ -42,34 +42,3 @@ class HistoryWrapper(gym.Wrapper):
         privileged_obs = self.env.get_privileged_observations()
         self.obs_history[:, :] = 0
         return {"obs": ret, "privileged_obs": privileged_obs, "obs_history": self.obs_history}
-
-
-if __name__ == "__main__":
-    from tqdm import trange
-    import matplotlib.pyplot as plt
-
-    import ml_logger as logger
-
-    from globe_walking.go1_gym_learn.ppo import Runner
-    from globe_walking.go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
-    from globe_walking.go1_gym_learn.ppo.actor_critic import AC_Args
-
-    from globe_walking.go1_gym.envs.base.legged_robot_config import Cfg
-    from globe_walking.go1_gym.envs.mini_cheetah.mini_cheetah_config import config_mini_cheetah
-    config_mini_cheetah(Cfg)
-
-    test_env = gym.make("VelocityTrackingEasyEnv-v0", cfg=Cfg)
-    env = HistoryWrapper(test_env)
-
-    env.reset()
-    action = torch.zeros(test_env.num_envs, 12)
-    for i in trange(3):
-        obs, rew, done, info = env.step(action)
-        print(obs.keys())
-        print(f"obs: {obs['obs']}")
-        print(f"privileged obs: {obs['privileged_obs']}")
-        print(f"obs_history: {obs['obs_history']}")
-
-        img = env.render('rgb_array')
-        plt.imshow(img)
-        plt.show()
