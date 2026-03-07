@@ -24,7 +24,6 @@ export LD_LIBRARY_PATH=/bigwork/nhwpduep/.conda/envs/dr_eureka/lib:$LD_LIBRARY_P
 export CXX=g++
 export CC=gcc
 rm -rf ~/.cache/torch_extensions
-rm -rf ~/.cache/torch_extensions/py38_cu113
 
 echo "Starting Gym..."
 # /bigwork/nhwpduep/master_thesis/dr-eureka-go2/runs/eureka/2026-02-21_09:35:30_GL_Go2_Qwen-30BQ-nt/1/14_2026-02-22_10:16:49/checkpoints
