@@ -49,7 +49,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
     stats["video_critique_completion_tokens"].append(full_response["usage"]["completion_tokens"])  # type: ignore
     stats["video_critique_total_tokens"].append(full_response["usage"]["total_tokens"])  # type: ignore
 
-    response = full_response["choices"]  # type: ignore
+    response = full_response["choices"][0]  # type: ignore
     # split thinking and non thinking content
     text = response[0].message.content
     thinking_content = re.search(r"(.*?)</think>", text, flags=re.DOTALL)
@@ -453,6 +453,7 @@ def main(cfg):
 
                 # rollout video feedback
                 run_dir = next((workspace_dir / str(iter)).glob(f"{response_id}*"))
+                logging.info(f"{(run_dir / 'videos' / 'final-0.mp4')=}: {(run_dir / 'videos' / 'final-0.mp4').exists()}")
                 extract_frames(
                     run_dir / "videos" / "final-0.mp4",
                     workspace_dir / "tmp_frames",
@@ -472,6 +473,7 @@ def main(cfg):
                         ],
                     },
                 ]
+                logging.info(f"{critique_messages=}")
                 video_response, stats = analyze_rollout_video(
                     cfg, critique_messages, stats
                 )
