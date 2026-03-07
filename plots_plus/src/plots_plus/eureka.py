@@ -104,6 +104,31 @@ def create_plots(
         colorpalette=plots_plus.colors.TOKEN_COLOR_MAP,
         filepath=graphics_dir / "tokens.png",
     )
+    if "video_critique_prompt_tokens" in full_success_stats_df.columns:
+        mapping = {
+            "video_critique_prompt_tokens": "prompt_tokens",
+            "video_critique_completion_tokens": "completion_tokens",
+            "video_critique_total_tokens": "total_tokens",
+            "video_critique_thinking_tokens": "thinking_tokens",
+            "video_critique_answer_tokens": "answer_tokens",
+        }
+        token_df: pd.DataFrame = full_success_stats_df[[*mapping.keys(), "iteration"]]  # type: ignore
+        tokens = plots_plus.utils.rotate_df(
+            token_df,
+            "iteration",
+            list(mapping.values()),
+            "tokens",
+        )
+        plots_plus.lineplot(
+            tokens,
+            x="iteration",
+            y="tokens",
+            hue="type",
+            ylim=(0, None),
+            hue_order=plots_plus.colors.TOKEN_ORDER,
+            colorpalette=plots_plus.colors.TOKEN_COLOR_MAP,
+            filepath=graphics_dir / "video_critique_tokens.png",
+        )
 
     losses_df: pd.DataFrame = metrics_df[metrics_df["metric_name"].str.match(".*loss")].rename({"metric_name": "loss"}, axis=1)  # type: ignore
     plots_plus.gridlineplot(
