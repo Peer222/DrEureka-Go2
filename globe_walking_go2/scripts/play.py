@@ -19,6 +19,7 @@ from plots_plus import rollout
 from dataclasses import dataclass
 from typing import Literal
 import tyro
+from ml_logger import logger
 
 
 def load_policy(checkpoint_path: Path):
@@ -211,8 +212,6 @@ def play_go2(
     save_video=False,
     num_rollouts: int = 1,
 ):
-    from ml_logger import logger
-
     logger.log("START PLAY", flush=True)
     logger.flush()
     checkpoint_path = run_path / "checkpoints"
