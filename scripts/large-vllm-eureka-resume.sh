@@ -8,6 +8,7 @@
 #SBATCH -J large-vllm-eureka-resume
 #SBATCH -o slurm_logs/large-vllm-eureka-resume/%j.out
 #SBATCH --time=7-00:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
 
 
 if [ "$#" -ne 3 ]; then

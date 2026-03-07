@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH -J vllm-test
+#SBATCH -J large-vllm-test
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:rtx_3090:2
-#SBATCH -o slurm_logs/vllm-test-multigpu/%j.out
+#SBATCH -o slurm_logs/large-vllm-test/%j.out
 #SBATCH --partition=tnt
 #SBATCH --time=01:00:00
 
