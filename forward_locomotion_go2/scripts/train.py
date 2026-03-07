@@ -21,6 +21,8 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     from forward_locomotion_go2.go2_gym_learn.ppo.ppo import PPO_Args
     from forward_locomotion_go2.go2_gym_learn.ppo import RunnerArgs
 
+    from forward_locomotion_go2.scripts.play import play_go2
+
     set_seed(seed, torch_deterministic=False)
 
     if command_config == "original":
@@ -94,6 +96,10 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     env = HistoryWrapper(env)
     runner = Runner(env, device=device)
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100)
+
+    # log video of trained policy rollout
+    logger.log(f"Start rollout: {run_dir}")
+    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1)
 
 
 if __name__ == '__main__':

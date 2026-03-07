@@ -2,7 +2,7 @@ import os
 import argparse
 
 
-def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0"):
+def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", num_eval_rollouts: int = 1):
     import isaacgym
     assert isaacgym
     import torch
@@ -54,29 +54,39 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                     Cfg=vars(Cfg))
 
-    wandb.init(
-        dir=run_dir,
-        project=wandb_project,
-        entity=wandb_entity,
-        name=str(time_now),
-        group=wandb_group,
-        config={
-            "AC_Args": vars(AC_Args),
-            "PPO_Args": vars(PPO_Args),
-            "RunnerArgs": vars(RunnerArgs),
-            "Cfg": vars(Cfg),
-            "HEADLESS": headless,
-        },
-    )
+    if not no_wandb:
+        wandb.init(
+            dir=run_dir,
+            project=wandb_project,
+            entity=wandb_entity,
+            name=str(time_now),
+            group=wandb_group,
+            config={
+                "AC_Args": vars(AC_Args),
+                "PPO_Args": vars(PPO_Args),
+                "RunnerArgs": vars(RunnerArgs),
+                "Cfg": vars(Cfg),
+                "HEADLESS": headless,
+            },
+        )
 
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     env = HistoryWrapper(env)
     runner = Runner(env, device=device, multi_gpu=Cfg.multi_gpu)
-    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100)
+    logger.log("Start training...")
+    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
     # log video of trained policy rollout
-    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True)
+    logger.log(f"Start rollout", flush=True)
+    logger.flush()
+
+    # clean environment/gpu
+    env.close()
+    del env
+    torch.cuda.empty_cache()
+
+    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=num_eval_rollouts)
 
 
 if __name__ == '__main__':
@@ -94,6 +104,8 @@ if __name__ == '__main__':
     parser.add_argument("--dr-config", type=str, required=True, choices=["eureka", "off"])
     parser.add_argument("--reward-config", type=str, required=True, choices=["eureka", "original"])
 
+    parser.add_argument("--num-eval-rollouts", type=int, default=1)
+
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
@@ -101,4 +113,4 @@ if __name__ == '__main__':
     assert args.reward_config == "eureka", "Only Eureka reward is available" # TODO
 
     resume_path = None
-    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device)
+    train_go2(iterations=args.iterations, dr_config=args.dr_config, headless=args.headless, resume_path=resume_path, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device, num_eval_rollouts=args.num_eval_rollouts)

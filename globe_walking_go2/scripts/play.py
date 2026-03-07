@@ -1,9 +1,5 @@
 import isaacgym
-
 assert isaacgym
-
-import sys
-import importlib
 
 import torch
 import pickle as pkl
@@ -215,14 +211,19 @@ def play_go2(
     save_video=False,
     num_rollouts: int = 1,
 ):
+    from ml_logger import logger
+
+    logger.log("START PLAY", flush=True)
+    logger.flush()
     checkpoint_path = run_path / "checkpoints"
     env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config)
+    logger.log("LOADED ENV and POLICY", flush=True)
+    logger.flush()
 
     all_stats_df = pd.DataFrame()
     for rollout_index in range(num_rollouts):
         if save_video:
             import imageio
-
             mp4_writer = imageio.get_writer("globe_walking.mp4", fps=50)
 
         obs = env.reset()

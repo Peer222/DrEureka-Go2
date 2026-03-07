@@ -120,6 +120,11 @@ def extract_frames(video_path: Path, frame_dir: Path, fps: int, max_video_length
 
     video = cv2.VideoCapture(video_path)
     original_fps = video.get(cv2.CAP_PROP_FPS)
+    if original_fps == 0:
+        video.release()
+        cv2.destroyAllWindows()
+        logging.warning(f"Video {video_path} has 0 fps! Maybe it does not exist")
+        return
     frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
     duration = frame_count / original_fps
     max_frames = (max_video_length / duration) * frame_count
