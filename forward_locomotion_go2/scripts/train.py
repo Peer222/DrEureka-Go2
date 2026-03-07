@@ -78,24 +78,25 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                     Cfg=vars(Cfg))
 
-    wandb.init(
-        dir=run_dir,
-        project=wandb_project,
-        entity=wandb_entity,
-        name=str(time_now),
-        group=wandb_group,
-        config={
-            "AC_Args": vars(AC_Args),
-            "PPO_Args": vars(PPO_Args),
-            "RunnerArgs": vars(RunnerArgs),
-            "Cfg": vars(Cfg),
-            "HEADLESS": headless,
-        },
-    )
+    if not no_wandb:
+        wandb.init(
+            dir=run_dir,
+            project=wandb_project,
+            entity=wandb_entity,
+            name=str(time_now),
+            group=wandb_group,
+            config={
+                "AC_Args": vars(AC_Args),
+                "PPO_Args": vars(PPO_Args),
+                "RunnerArgs": vars(RunnerArgs),
+                "Cfg": vars(Cfg),
+                "HEADLESS": headless,
+            },
+        )
 
     env = HistoryWrapper(env)
     runner = Runner(env, device=device)
-    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100)
+    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
     # log video of trained policy rollout
     logger.log(f"Start rollout: {run_dir}")

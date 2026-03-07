@@ -90,12 +90,13 @@ class Runner:
 
         self.env.reset()
 
-    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, eval_expert=False):
+    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, eval_expert=False, no_wandb=False):
         # initialize writer
         assert logger.prefix, "you will overwrite the entire instrument server"
 
         logger.start('start', 'epoch', 'episode', 'run', 'step')
-        wandb.watch(self.alg.actor_critic, log="all", log_freq=RunnerArgs.log_freq)
+        if not no_wandb:
+            wandb.watch(self.alg.actor_critic, log="all", log_freq=RunnerArgs.log_freq)
 
         if init_at_random_ep_len:
             self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf,
@@ -146,12 +147,14 @@ class Runner:
                     if 'train/episode' in infos:
                         with logger.Prefix(metrics="train/episode"):
                             logger.store_metrics(**infos['train/episode'])
-                        wandb.log(infos['train/episode'], step=it)
+                        if not no_wandb:
+                            wandb.log(infos['train/episode'], step=it)
 
                     if 'eval/episode' in infos:
                         with logger.Prefix(metrics="eval/episode"):
                             logger.store_metrics(**infos['eval/episode'])
-                        wandb.log(infos['eval/episode'], step=it)
+                        if not no_wandb:
+                            wandb.log(infos['eval/episode'], step=it)
 
                     if 'curriculum' in infos:
                         curr_bins_train = infos['curriculum']['reset_train_env_bins']
@@ -212,11 +215,12 @@ class Runner:
                 mean_value_loss=mean_value_loss,
                 mean_surrogate_loss=mean_surrogate_loss
             )
-            wandb.log({
-                "adaptation_loss": mean_adaptation_module_loss,
-                "mean_value_loss": mean_value_loss,
-                "mean_surrogate_loss": mean_surrogate_loss,
-            }, step=it)
+            if not no_wandb:
+                wandb.log({
+                    "adaptation_loss": mean_adaptation_module_loss,
+                    "mean_value_loss": mean_value_loss,
+                    "mean_surrogate_loss": mean_surrogate_loss,
+                }, step=it)
 
             if RunnerArgs.save_video_interval:
                 self.log_video(it)
@@ -227,7 +231,8 @@ class Runner:
                 logger.log_metrics_summary(key_values={"timesteps": self.tot_timesteps, "iterations": it})
                 logger.job_running()
 
-            wandb.log({"timesteps": self.tot_timesteps, "iterations": it}, step=it)
+            if not no_wandb:
+                wandb.log({"timesteps": self.tot_timesteps, "iterations": it}, step=it)
             if it and it % RunnerArgs.save_interval == 0:
                 self.log_checkpoint(it)
             self.current_learning_iteration += num_learning_iterations

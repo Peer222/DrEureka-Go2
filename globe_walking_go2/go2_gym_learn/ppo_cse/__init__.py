@@ -114,7 +114,7 @@ class Runner:
 
         self.env.reset()
 
-    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, curriculum_dump_freq=500, eval_expert=False):
+    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, curriculum_dump_freq=500, eval_expert=False, no_wandb=False):
         logger.start('start', 'epoch', 'episode', 'run', 'step')
 
         checkpoint_path = Path(logger.root) / logger.prefix / "checkpoints"  # type: ignore
@@ -127,7 +127,7 @@ class Runner:
             self.alg.actor_critic.load_state_dict(model_params[0])
 
         # trigger_sync = TriggerWandbSyncHook()
-        if self.rank == 0:
+        if self.rank == 0 and not no_wandb:
             wandb.watch(self.alg.actor_critic, log="all", log_freq=RunnerArgs.log_freq)
 
         if init_at_random_ep_len:
@@ -167,7 +167,8 @@ class Runner:
                     self.alg.process_env_step(rewards[:num_train_envs], dones[:num_train_envs], infos)
 
                     if 'train/episode' in infos and self.rank == 0:
-                        wandb.log(infos['train/episode'], step=it)
+                        if not no_wandb:
+                            wandb.log(infos['train/episode'], step=it)
                         with logger.Prefix(metrics="train/episode"):
                             logger.store_metrics(**infos['train/episode'])
 
@@ -209,30 +210,30 @@ class Runner:
                     mean_adaptation_module_test_loss=mean_adaptation_module_test_loss
                 )
                 logger.store_metrics(**mean_adaptation_losses_dict)
-
-                wandb.log({
-                    "time_iter": learn_time,
-                    # "time_iter": logger.split('epoch'),
-                    "adaptation_loss": mean_adaptation_module_loss,
-                    "mean_value_loss": mean_value_loss,
-                    "mean_surrogate_loss": mean_surrogate_loss,
-                    "mean_decoder_loss": mean_decoder_loss,
-                    "mean_decoder_loss_student": mean_decoder_loss_student,
-                    "mean_decoder_test_loss": mean_decoder_test_loss,
-                    "mean_decoder_test_loss_student": mean_decoder_test_loss_student,
-                    "mean_adaptation_module_test_loss": mean_adaptation_module_test_loss
-                }, step=it)
-                wandb.log(mean_adaptation_losses_dict, step=it)
+                if not no_wandb:
+                    wandb.log({
+                        "time_iter": learn_time,
+                        # "time_iter": logger.split('epoch'),
+                        "adaptation_loss": mean_adaptation_module_loss,
+                        "mean_value_loss": mean_value_loss,
+                        "mean_surrogate_loss": mean_surrogate_loss,
+                        "mean_decoder_loss": mean_decoder_loss,
+                        "mean_decoder_loss_student": mean_decoder_loss_student,
+                        "mean_decoder_test_loss": mean_decoder_test_loss,
+                        "mean_decoder_test_loss_student": mean_decoder_test_loss_student,
+                        "mean_adaptation_module_test_loss": mean_adaptation_module_test_loss
+                    }, step=it)
+                    wandb.log(mean_adaptation_losses_dict, step=it)
 
                 if RunnerArgs.save_video_interval:
-                    self.log_video(it)
+                    self.log_video(it, no_wandb)
 
                 # self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
                 if logger.every(RunnerArgs.log_freq, "iteration", start_on=1):
                     logger.log_metrics_summary(key_values={"timesteps": self.tot_timesteps * self.rank_size, "iterations": it})
                     logger.job_running()
-
-                wandb.log({"timesteps": self.tot_timesteps * self.rank_size, "iterations": it}, step=it)
+                if not no_wandb:
+                    wandb.log({"timesteps": self.tot_timesteps * self.rank_size, "iterations": it}, step=it)
                 # trigger_sync()
 
                 if it % RunnerArgs.save_interval == 0 or it == tot_iter - 1:
@@ -254,7 +255,7 @@ class Runner:
             self.current_learning_iteration += num_learning_iterations
 
         with logger.Sync():
-            print(f"Saving model at iteration after training")
+            logger.log(f"Saving model after training")
 
             logger.torch_save(self.alg.actor_critic.state_dict(), f"checkpoints/ac_weights_latest.pt")
 
@@ -268,8 +269,7 @@ class Runner:
             traced_script_body_module = torch.jit.script(body_model)  # type: ignore
             traced_script_body_module.save(body_path)  # type: ignore
 
-
-    def log_video(self, it):
+    def log_video(self, it, no_wandb: bool = False):
         if it - self.last_recording_it >= RunnerArgs.save_video_interval:
             self.env.start_recording()
             print("START RECORDING")
@@ -283,7 +283,8 @@ class Runner:
             video_array = np.concatenate([np.expand_dims(frame, axis=0) for frame in frames ], axis=0).swapaxes(1, 3).swapaxes(2, 3)
             print(video_array.shape)
             logger.save_video(frames, f"videos/{it:06d}.mp4", fps=1 / self.env.dt)
-            wandb.log({"video": wandb.Video(video_array, fps=1 / self.env.dt, format='mp4')}, step=it)
+            if not no_wandb:
+                wandb.log({"video": wandb.Video(video_array, fps=1 / self.env.dt, format='mp4')}, step=it)
 
     def get_inference_policy(self, device=None):
         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)
