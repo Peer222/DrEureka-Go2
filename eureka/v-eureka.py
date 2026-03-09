@@ -480,7 +480,7 @@ def main(cfg):
                 video_response, stats = analyze_rollout_video(
                     cfg, critique_messages, stats
                 )
-                content += video_feedback.replace("{critique_feedback}", video_response)
+                content += video_feedback.replace("{critique_feedback}", video_response["message"]["answer"])
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)
