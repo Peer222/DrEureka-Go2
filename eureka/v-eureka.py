@@ -31,7 +31,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
     vllm_host = "http://0.0.0.0:8000"
     openai.api_base = f"{vllm_host}/v1"
 
-    full_response = {}
+    full_response = None
     for attempt in range(3):
         try:
             full_response = openai.ChatCompletion.create(
@@ -44,6 +44,9 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
             logging.info(f"Attempt {attempt+1} failed with error: {e}")
             time.sleep(1)
     logging.info(f"VLM critique {full_response=}")
+    if full_response is None:
+        logging.error("Code terminated due to too many failed attempts! (vision critique)")
+        exit(1)
 
     stats["video_critique_prompt_tokens"].append(full_response["usage"]["prompt_tokens"])  # type: ignore
     stats["video_critique_completion_tokens"].append(full_response["usage"]["completion_tokens"])  # type: ignore
@@ -51,7 +54,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
 
     response = full_response["choices"][0]  # type: ignore
     # split thinking and non thinking content
-    text = response[0].message.content
+    text = response.message.content
     thinking_content = re.search(r"(.*?)</think>", text, flags=re.DOTALL)
     response["message"]["thinking"] = (
         thinking_content.group(1)
@@ -103,8 +106,8 @@ def generate_samples(cfg, messages, stats):
                 logging.info(f"Attempt {attempt+1} failed with error: {e}")
                 time.sleep(1)
         if response is None:
-            logging.info("Code terminated due to too many failed attempts!")
-            exit()
+            logging.error("Code terminated due to too many failed attempts!")
+            exit(1)
 
         responses.extend(response["choices"])  # type: ignore
         stats["prompt_tokens"].append(response["usage"]["prompt_tokens"])  # type: ignore
