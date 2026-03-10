@@ -113,6 +113,7 @@ def create_plots(
             "video_critique_answer_tokens": "answer_tokens",
         }
         token_df: pd.DataFrame = full_success_stats_df[[*mapping.keys(), "iteration"]]  # type: ignore
+        token_df = token_df.rename(mapping, axis=1)
         tokens = plots_plus.utils.rotate_df(
             token_df,
             "iteration",
