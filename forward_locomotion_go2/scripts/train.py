@@ -8,6 +8,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     import isaacgym
     assert isaacgym
     import wandb
+    import torch
     from ml_logger import logger
 
     from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
@@ -99,7 +100,14 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
     # log video of trained policy rollout
-    logger.log(f"Start rollout: {run_dir}")
+    logger.log(f"Start rollout", flush=True)
+    logger.flush()
+
+    # clean environment/gpu
+    env.close()
+    del env
+    torch.cuda.empty_cache()
+
     play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1)
 
 
