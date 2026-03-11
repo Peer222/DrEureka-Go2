@@ -2,7 +2,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH -J vl-vllmapi-test
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:rtx_3090:2
 #SBATCH -o slurm_logs/vl-vllmapi-test/%j.out
 #SBATCH --partition=tnt
@@ -19,7 +19,7 @@ HOST=0.0.0.0
 PORT=8000
 
 echo "Start server..."
-VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/examples/video_frames/" &
+LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/examples/video_frames/" &
 VLLM_PID=$!
 echo "Server starting ($VLLM_PID)..."
 

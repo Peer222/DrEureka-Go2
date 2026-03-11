@@ -1,18 +1,18 @@
 #!/bin/bash
 #SBATCH --partition=tnt
-#SBATCH --ntasks=2
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:rtx_3090:4
 
 #SBATCH -J vl-vllm-eureka-multigpu
 #SBATCH -o slurm_logs/vl-vllm-eureka-multigpu/%j.out
-#SBATCH --time=7-00:00:00
+#SBATCH --time=7-12:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8] $2 <environment>"
+    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment>"
     exit 1
 fi
 
@@ -27,7 +27,7 @@ HOST=0.0.0.0
 PORT=8000
 
 echo "Start server..."
-CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/" &
+LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" CUDA_VISIBLE_DEVICES="2,3" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/" &
 VLLM_PID=$!
 echo "Server starting ($VLLM_PID)..."
 

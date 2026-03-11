@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --partition=tnt
-#SBATCH --ntasks=2
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:rtx_3090:4
 
 #SBATCH -J large-vllm-eureka-multigpu

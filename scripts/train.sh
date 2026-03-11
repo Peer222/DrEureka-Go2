@@ -1,16 +1,16 @@
 #!/bin/bash
 #SBATCH --partition=tnt
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:rtx_3090:1
 
 #SBATCH -J train
 #SBATCH -o slurm_logs/train/%j.out
-#SBATCH --time=2:00:00
+#SBATCH --time=1-00:00:00
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $1 <environment> $2 <iterations>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $1 <environment> $2 <iterations> $3 <reward ["original", "eureka", "eureka_original"]> $4 <dr ["original", "eureka", "eureka_original", "off"]>"
     exit 1
 fi
 
@@ -28,4 +28,4 @@ rm -rf ~/.cache/torch_extensions
 echo "Starting Gym..."
 # /bigwork/nhwpduep/master_thesis/dr-eureka-go2/runs/eureka/2026-02-21_09:35:30_GL_Go2_Qwen-30BQ-nt/1/14_2026-02-22_10:16:49/checkpoints
 export WANDB_MODE="offline"
-python "$1/scripts/train.py" --iterations "$2" --headless --dr-config off --reward-config eureka --wandb-group "train/$1" --device "cuda:0" --no-wandb
+python "$1/scripts/train.py" --iterations "$2" --headless --dr-config "$4" --reward-config "$3" --wandb-group "train/$1" --device "cuda:0" --no-wandb
