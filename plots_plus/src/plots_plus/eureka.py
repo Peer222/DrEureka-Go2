@@ -1,7 +1,7 @@
 import tyro
 import ast
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 import pandas as pd
 from pathlib import Path
@@ -248,23 +248,35 @@ if __name__ == "__main__":
 
     @dataclass
     class Args:
-        statspath: Path
-        """Path to eureka statistics file"""
-        metricspath: Path
-        """Path to eureka rewards/metrics file"""
         result_dir: Path
         """directory in which graphics are stored"""
         train_iterations: int
         """Number of iterations used for training of samples"""
+        run_dir: Optional[Path] = None
+        """Path to run directory"""
+        statspath: Optional[Path] = None
+        """Path to eureka statistics file"""
+        metricspath: Optional[Path] = None
+        """Path to eureka rewards/metrics file"""
 
     args = tyro.cli(Args)
     args.result_dir.mkdir(parents=True, exist_ok=True)
+    assert args.run_dir or (args.statspath and args.metricspath)
 
-    full_stats_df = pd.read_csv(args.statspath)
+    if args.statspath:
+        full_stats_df = pd.read_csv(args.statspath)
+    else:
+        full_stats_df = pd.read_csv(args.run_dir / "stats.csv")  # type: ignore
     graphics_dir = args.result_dir
-    metrics_df = plots_plus.utils.load_metric_series(
-        args.metricspath, args.train_iterations
-    )
+    if args.metricspath:
+        metrics_df = plots_plus.utils.load_metric_series(
+            args.metricspath, args.train_iterations
+        )
+    else:
+        metrics_df = plots_plus.utils.load_metric_series(
+            args.run_dir / "metrics.json", args.train_iterations  # type: ignore
+        )
+
     create_plots(
         full_stats_df["version"].iloc[0].split("_")[0],
         full_stats_df,
