@@ -43,7 +43,6 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
         except Exception as e:
             logging.info(f"Attempt {attempt+1} failed with error: {e}")
             time.sleep(1)
-    logging.info(f"VLM critique {full_response=}")
     if full_response is None:
         logging.error("Code terminated due to too many failed attempts! (vision critique)")
         exit(1)
