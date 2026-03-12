@@ -31,6 +31,20 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
     vllm_host = "http://0.0.0.0:8000"
     openai.api_base = f"{vllm_host}/v1"
 
+    custom_params = {}
+    if cfg.use_custom_params:
+        custom_params = {
+            "max_tokens": cfg.max_tokens,
+            "temperature": cfg.temperature,
+            "top_p": cfg.top_p,
+            "presence_penalty": cfg.presence_penalty,
+            "extra_body": {
+                "top_k": cfg.top_k,
+                "repetition_penalty": cfg.repetition_penalty,
+                "chat_template_kwargs": {"enable_thinking": cfg.thinking_enabled},
+            },
+        }
+
     full_response = None
     for attempt in range(3):
         try:
@@ -38,6 +52,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
                 model=f"{cfg.model_path}{cfg.model}",
                 messages=messages,
                 n=1,
+                **custom_params,
             )
             break
         except Exception as e:

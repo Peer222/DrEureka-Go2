@@ -11,12 +11,20 @@ hydra:
 # LLM parameters
 model_path: /bigwork/nhwpduep/master_thesis/models/
 model: cmd_line_argument  # original: gpt-4-0125-preview
-thinking_enabled: False  # for Qwen3 models with thinking
+thinking_enabled: True  # for Qwen3 models with thinking (does not work for Qwen3.5)
 include_thinking_in_prompt: False
 
+use_custom_params: True
+temperature: 1.0
+top_p: 0.95
+top_k: 20
+min_p: 0.0
+presence_penalty: 1.5
+repetition_penalty: 1.0
+
 # Eureka parameters
-iteration: 2               # how many iterations of Eureka to run
-sample: 3                  # number of Eureka samples to generate per iteration
+iteration: 5               # how many iterations of Eureka to run
+sample: 16                 # number of Eureka samples to generate per iteration
 feedback_series_size: 10   # Number of values included in feedback prompt per metric
 fps: 25                    # video feedback
 max_video_length: 10        # Maximum length of video (taken from end)
