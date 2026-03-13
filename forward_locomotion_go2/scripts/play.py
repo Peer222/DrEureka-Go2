@@ -74,7 +74,7 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
                         Cfg.env.num_observation_history,
         num_actions=Cfg.env.num_actions)
 
-    weights = logger.load_torch("checkpoints/ac_weights_last.pt")
+    weights = logger.load_torch("checkpoints/ac_weights_final.pt")
     actor_critic.load_state_dict(state_dict=weights)
     actor_critic.to(env.device)
     policy = actor_critic.act_inference
