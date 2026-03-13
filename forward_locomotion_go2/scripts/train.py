@@ -10,6 +10,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     import wandb
     import torch
     from ml_logger import logger
+    from plots_plus.train import create_plots
 
     from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
     from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
@@ -68,7 +69,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     else:
         Cfg.commands.command_curriculum = False
 
-    print(f"DEVICE: {device}")
+    logger.log(f"DEVICE: {device}")
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
@@ -109,6 +110,8 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     torch.cuda.empty_cache()
 
     play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1)
+
+    create_plots(run_dir / "outputs.log", run_dir / "graphics")
 
 
 if __name__ == '__main__':

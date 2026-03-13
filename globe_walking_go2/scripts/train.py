@@ -20,6 +20,7 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     from globe_walking_go2.scripts.play import play_go2
 
     from ml_logger import logger
+    from plots_plus.train import create_plots
 
     set_seed(seed, torch_deterministic=False)
 
@@ -70,6 +71,7 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
             },
         )
 
+    logger.log(f"{device=}")
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     env = HistoryWrapper(env)
@@ -87,6 +89,8 @@ def train_go2(iterations, dr_config, headless=True, resume_path=None, no_wandb=F
     torch.cuda.empty_cache()
 
     play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=num_eval_rollouts)
+
+    create_plots(run_dir / "outputs.log", run_dir / "graphics")
 
 
 if __name__ == '__main__':
