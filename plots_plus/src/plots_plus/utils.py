@@ -64,7 +64,7 @@ def load_metric_series(filepath: Path, train_iterations: int) -> pd.DataFrame:
 
 
 def rotate_df(
-    df: pd.DataFrame, x: Union[str, List[str]], ys: List[str], ylabel: str
+    df: pd.DataFrame, x: Union[str, List[str]], ys: Iterable[str], ylabel: str
 ) -> pd.DataFrame:
     """Rotates df und returns df with x, "type", and ylabel column
     Type column is cleaned with clean_variable()
