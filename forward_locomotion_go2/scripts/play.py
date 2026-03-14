@@ -22,7 +22,7 @@ import tyro
 from ml_logger import logger
 
 
-def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True):
+def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True, device="cuda:0"):
     # Will be overwritten by the loaded config from parameters.pkl
     Cfg.commands = Cfg.commands_original
     Cfg.rewards = Cfg.rewards_eureka
@@ -63,8 +63,10 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
     Cfg.terrain.num_rows = 3
     Cfg.terrain.num_cols = 5
     Cfg.terrain.border_size = 0
-
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)  # type: ignore
+    if device == "cpu":
+        Cfg.sim.use_gpu_pipeline = False
+        Cfg.env.record_video = True
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
     env = HistoryWrapper(env)
 
     actor_critic = ActorCritic(
@@ -74,7 +76,7 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
                         Cfg.env.num_observation_history,
         num_actions=Cfg.env.num_actions)
 
-    weights = logger.load_torch("checkpoints/ac_weights_final.pt")
+    weights = torch.load(checkpoint_path / "ac_weights_final.pt", map_location="cpu")
     actor_critic.load_state_dict(state_dict=weights)
     actor_critic.to(env.device)
     policy = actor_critic.act_inference
@@ -88,11 +90,12 @@ def play_go2(
     dr_config="off",
     save_video=False,
     num_rollouts: int = 1,
+    device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0"
 ):
     logger.log("START PLAY", flush=True)
     logger.flush()
     checkpoint_path = run_path / "checkpoints"
-    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config)
+    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, device=device)
     logger.log("LOADED ENV and POLICY", flush=True)
     logger.flush()
 
@@ -119,7 +122,7 @@ def play_go2(
         torques = []
         out_of_limits = []
 
-        robot_idx = env.robot_actor_idxs.item()
+        robot_idx = 0
         done = torch.tensor(0)
         while True:
             if save_video:
@@ -221,7 +224,7 @@ def play_go2(
     if save_video:
         all_stats_df.to_csv(checkpoint_path / ".." / "rollout_stats.csv")
         rollout.create_plots(
-            all_stats_df, checkpoint_path / ".." / "graphics", env="forward_locomotion_go2"
+            all_stats_df, checkpoint_path / ".." / "graphics" / "rollouts", env="forward_locomotion_go2"
         )
 
 
@@ -241,6 +244,8 @@ if __name__ == "__main__":
         """Play in headless mode"""
         no_video: bool = False
         """If set, no video is recorded"""
+        device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0"
+        """Device that is used for simulation and policy"""
 
     args = tyro.cli(Args)
 
@@ -264,4 +269,5 @@ if __name__ == "__main__":
         num_rollouts=args.num_rollouts,
         headless=args.headless,
         save_video=not args.no_video,
+        device=args.device,
     )

@@ -70,6 +70,9 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
         Cfg.commands.command_curriculum = False
 
     logger.log(f"DEVICE: {device}")
+    if headless:
+        logger.log("Running headless... disable video recording for training")
+        Cfg.env.record_video = False
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
 
     run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
@@ -101,15 +104,15 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
     # log video of trained policy rollout
-    logger.log(f"Start rollout", flush=True)
+    logger.log(f"Start rollout... Running headless on cpu with video rendering", flush=True)
     logger.flush()
 
     # clean environment/gpu
     env.close()
     del env
     torch.cuda.empty_cache()
-
-    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1)
+    # run on cpu to prevent segmentation faults?
+    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1, device="cpu")
 
     create_plots(run_dir / "outputs.log", run_dir / "graphics")
 

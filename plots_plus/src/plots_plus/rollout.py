@@ -11,6 +11,8 @@ import plots_plus
 def create_plots(
     rollout_stats_df: pd.DataFrame, graphics_dir: Path, env: str = "globe_walking_go2"
 ):
+    graphics_dir.mkdir(exist_ok=True, parents=True)
+
     metrics = rollout_stats_df.columns
 
     rewards = {

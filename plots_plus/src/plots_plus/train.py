@@ -40,6 +40,8 @@ def create_plots(
     run_log_path: Path,
     graphics_dir: Path,
 ):
+    graphics_dir.mkdir(exist_ok=True, parents=True)
+
     metrics_df = construct_metrics_df(run_log_path)
     plots_plus.lineplot(
         metrics_df,

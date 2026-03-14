@@ -22,22 +22,22 @@ def filter_traceback(s):
 
 
 def block_until_training(
-    rl_filepath,
+    rl_filepath: Path,
     log_status=False,
     iter_num=-1,
     response_id=-1,
-    check_frequency: int = 30,
+    check_frequency: int = 20,
 ):
     # Ensure that the RL training has started before moving on
     startup_time_needed = 0
     while startup_time_needed < 30 * 60:
         rl_log = file_to_string(rl_filepath)
-        if "running" in rl_log or "Traceback" in rl_log:
+        if "running" in rl_log or "Traceback" in rl_log or "Exception" in rl_log:
             if log_status and "running" in rl_log:
                 logging.info(
                     f"Iteration {iter_num}: Code Run {response_id} successfully training!"
                 )
-            if log_status and "Traceback" in rl_log:
+            if log_status and ("Traceback" in rl_log or "Exception" in rl_log):
                 logging.info(
                     f"Iteration {iter_num}: Code Run {response_id} execution error!"
                 )
