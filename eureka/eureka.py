@@ -1,5 +1,5 @@
 import hydra
-import os
+import sys
 import numpy as np
 import json
 import pandas as pd
@@ -14,12 +14,12 @@ import shutil
 import time
 import requests
 from ml_logger import logger
+import submitit
 
 # relative imports for editor
 from utils.misc import *  # type: ignore
 from utils.extract_task_code import *  # type: ignore
 import plots_plus
-from typing import Literal
 
 EUREKA_ROOT_DIR = Path.cwd()
 ROOT_DIR = EUREKA_ROOT_DIR / ".."
@@ -109,6 +109,7 @@ def add_failure_values(stats):
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
     workspace_dir = Path.cwd()
+    log_dir = Path("logs")  # dir to save run logs
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {str(EUREKA_ROOT_DIR)}")
 
@@ -185,9 +186,7 @@ def main(cfg):
         logging.info(f"Last complete iteration: {last_complete_iteration}")
         best_idx = full_stats[
             full_stats["iteration"] <= last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)[
-            "fitness_score_max"
-        ]
+        ].idxmax(numeric_only=True)["fitness_score_max"]
         logging.info(f"Best Index: {best_idx}")
         maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
         maximum_iteration = full_stats.iloc[best_idx]["iteration"]
@@ -195,9 +194,7 @@ def main(cfg):
 
         best_current_idx = full_stats[
             full_stats["iteration"] == last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)[
-            "fitness_score_max"
-        ]
+        ].idxmax(numeric_only=True)["fitness_score_max"]
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         if last_complete_iteration > 0:
@@ -222,6 +219,37 @@ def main(cfg):
                         {"role": "assistant", "content": llm_reward_generation}
                     )
                     messages.append({"role": "user", "content": reward_reflection})
+
+    if cfg.use_submitit:
+        submitit_executor = submitit.SlurmExecutor(folder="submitit")
+        submitit_executor.update_parameters(
+            stderr_to_stdout=True,
+            cpus_per_task=4,
+            mem="48G",
+            partition="tnt",
+            gres="gpu:rtx_3090:1",
+            job_name="run",
+            time="12:00:00",
+        )
+
+        def train(train_cfg: Dict):
+            try:
+                if cfg.env.env_name.lower() == "globe_walking_go2":
+                    from globe_walking_go2.scripts.train import train_go2
+
+                    train_go2(**train_cfg)
+                elif cfg.env.env_name.lower() == "forward_locomotion_go2":
+                    from forward_locomotion_go2.scripts.train import train_mc
+
+                    train_cfg["command_config"] = "off"
+                    train_mc(**train_cfg)
+                else:
+                    raise NotImplementedError(
+                        f"Not implemented environment: {cfg.env.env_name.lower()}"
+                    )
+            except Exception as e:
+                print(f"Exception: {e}", file=sys.stderr)
+                sys.stderr.flush()
 
     # Eureka generation loop
     for iter in range(last_complete_iteration + 1, cfg.iteration):
@@ -261,7 +289,7 @@ def main(cfg):
             cur_task_rew_code_string = task_rew_code_string.replace(
                 "# INSERT EUREKA REWARD HERE", code_string
             )
-            with open(output_file, "w") as file:  # TODO maybe adapt for concurrency
+            with open(f"rewards/iteration-{iter}_sample-{sample_idx}.py", "w") as file:
                 file.writelines(cur_task_rew_code_string + "\n")
 
             ### saving messages, llm response and generated reward code
@@ -273,49 +301,66 @@ def main(cfg):
                 file.write(
                     f'***Thinking:***\n\n{sample["message"]["thinking"]}\n\n***Final Answer:***\n\n{sample["message"]["answer"]}'
                 )
-            shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
-            ###
 
-            rl_logpath = f"logs/iteration-{iter}_sample-{sample_idx}.log"
-
-            with open(rl_logpath, "w") as f:
-                # Execute the python file with flags
-                command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
-                command = command.split(" ")
-                if not cfg.use_run_wandb:
-                    command.append("--no-wandb")
-                logging.info(command)
-                evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
-                used_gpus.append(free_eval_gpu)
-
-            # needed so that rewards are not overridden
-            block_until_training(  # type: ignore
-                rl_logpath,
-                log_status=True,
-                iter_num=iter,
-                response_id=sample_idx,
-            )
-            free_eval_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)  # type: ignore
+            rl_logpath = log_dir / f"iteration-{iter}_sample-{sample_idx}.log"
+            if cfg.use_submitit:
+                train_cfg = {
+                    "reward_struct": cur_task_rew_code_string,
+                    "iterations": cfg.env.train_iterations,
+                    "reward_config": "eureka",
+                    "dr_config": "off",
+                    "no_wandb": not cfg.use_run_wandb,
+                    # also used as result directory path
+                    "wandb_group": f"v-eureka/{TIMESTAMP}/{iter}/{sample_idx}",
+                    "headless": True,
+                    "device": "cuda:0",
+                }
+                job = submitit_executor.submit(train, train_cfg)  # type: ignore
+                evaluation_runs.append(job)
+            else:
+                # TODO make dynamic loading of reward-struct work here as well
+                shutil.copy(
+                    f"rewards/iteration-{iter}_sample-{sample_idx}.py", output_file
+                )
+                with open(rl_logpath, "w") as f:
+                    # Execute the python file with flags
+                    command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
+                    command = command.split(" ")
+                    if not cfg.use_run_wandb:
+                        command.append("--no-wandb")
+                    logging.info(command)
+                    evaluation_runs.append(
+                        subprocess.Popen(command, stdout=f, stderr=f)
+                    )
+                    used_gpus.append(free_eval_gpu)
+                # needed so that rewards are not overridden
+                block_until_training(
+                    rl_logpath,
+                    log_status=True,
+                    iter_num=iter,
+                    response_id=sample_idx,
+                )
+                free_eval_gpu: int = block_until_free_gpu(
+                    evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu
+                )
 
         # Gather evaluation results and construct reward reflection
         contents = []  # Logs and other feedback for LLM
         for response_id, evaluation_run in enumerate(evaluation_runs):
-            evaluation_run.communicate()
-            rl_logpath = f"logs/iteration-{iter}_sample-{response_id}.log"
-            try:
-                with open(rl_logpath, "r") as f:
-                    stdout_str = f.read()
-            except:
-                # TODO bugfixing by LLM not implemented
-                content = execution_error_feedback.format(
-                    traceback_msg="Code Run cannot be executed due to function signature error! Please re-write an entirely new reward function!"
-                )
-                content += code_output_tip
-                contents.append(content)
-                add_failure_values(stats)
-                iteration_metrics.append({})
-                logging.error(f"ERROR: Could not open/read {rl_logpath}")
-                continue
+            rl_logpath = log_dir / f"iteration-{iter}_sample-{response_id}.log"
+            if cfg.use_submitit:
+                try:
+                    evaluation_run.result()
+                    log = evaluation_run.stdout()
+                    with open(rl_logpath, "w") as log_file:
+                        log_file.write(log)
+                except Exception as e:
+                    logging.info(f"Job {iter}-{response_id} failed! \n{e}\n")
+            else:
+                evaluation_run.communicate()
+
+            with open(rl_logpath, "r") as f:
+                stdout_str = f.read()
 
             content = ""
             traceback_msg = filter_traceback(stdout_str)  # type: ignore
