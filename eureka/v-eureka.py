@@ -72,14 +72,14 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
 
     response = full_response["choices"][0]  # type: ignore
     # split thinking and non thinking content
-    text = response.message.content
-    thinking_content = re.search(r"(.*?)</think>", text, flags=re.DOTALL)
+    text: str = response.message.content
+    thinking_content = re.search(r"(<think>)?(.*?)</think>", text, flags=re.DOTALL)
     response["message"]["thinking"] = (
-        thinking_content.group(1)
-        if thinking_content and len(thinking_content.group(1))
+        thinking_content.group(2).strip()
+        if thinking_content and len(thinking_content.group(2))
         else "None"
     )
-    response["message"]["answer"] = text.split("</think>")[-1]
+    response["message"]["answer"] = text.split("</think>")[-1].strip()
     if response["message"]["thinking"] != "None":
         res = requests.post(
             f"{vllm_host}/tokenize",
@@ -136,14 +136,14 @@ def generate_samples(cfg, messages, stats):
 
     # split thinking and non thinking content
     for i, response in enumerate(responses):
-        text = response["message"]["content"]
-        thinking_content = re.search(r"(.*?)</think>", text, flags=re.DOTALL)
+        text: str = response["message"]["content"]
+        thinking_content = re.search(r"(<think>)?(.*?)</think>", text, flags=re.DOTALL)
         response["message"]["thinking"] = (
-            thinking_content.group(1)
-            if thinking_content and len(thinking_content.group(1))
+            thinking_content.group(2).strip()
+            if thinking_content and len(thinking_content.group(2))
             else "None"
         )
-        response["message"]["answer"] = text.split("</think>")[-1]
+        response["message"]["answer"] = text.split("</think>")[-1].strip()
         if response["message"]["thinking"] != "None":
             res = requests.post(
                 f"{vllm_host}/tokenize",
