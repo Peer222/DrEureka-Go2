@@ -1,6 +1,6 @@
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 from isaacgym import gymtorch, gymapi, gymutil
 from isaacgym.torch_utils import *
@@ -19,7 +19,7 @@ import logging
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless,
-                 initial_dynamics_dict=None, terrain_props=None, custom_heightmap=None):
+                 initial_dynamics_dict=None, terrain_props=None, custom_heightmap=None, reward_struct: Optional[str] = None):
         """ Parses the provided config file,
             calls create_sim() (which creates, simulation, terrain and environments),
             initilizes pytorch buffers used during training
@@ -50,7 +50,7 @@ class LeggedRobot(BaseTask):
         if not self.headless:
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
 
-        self._prepare_reward_function()
+        self._prepare_reward_function(reward_struct)
         self.init_done = True
         self.record_now = False
         self.collecting_evaluation = False
@@ -1329,7 +1329,7 @@ class LeggedRobot(BaseTask):
         for curriculum in self.curricula:
             curriculum.set_to(low=low, high=high)
 
-    def _prepare_reward_function(self):
+    def _prepare_reward_function(self, reward_struct: Optional[str] = None):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.
             Looks for self._reward_<REWARD_NAME>, where <REWARD_NAME> are names of all non zero reward scales in the cfg.
         """
@@ -1341,7 +1341,17 @@ class LeggedRobot(BaseTask):
             "EurekaReward": EurekaReward,
             "EurekaOriginalReward": EurekaOriginalReward,
         }
-        self.reward_container = reward_containers[self.cfg.rewards.reward_container_name](self)
+
+        if reward_struct:
+            try:
+                loaded_reward = {}
+                exec(reward_struct, globals(), loaded_reward)
+            except Exception as e:
+                raise Exception(f"exec(reward_struct) failed with exception: \n{e}")
+            self.reward_container = loaded_reward["EurekaReward"](self)
+            print("Loaded reward functions from string...")
+        else:
+            self.reward_container = reward_containers[self.cfg.rewards.reward_container_name](self)
 
         if "compute_reward" in dir(self.reward_container):
             exit()

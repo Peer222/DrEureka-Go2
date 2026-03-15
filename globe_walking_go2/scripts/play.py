@@ -17,9 +17,8 @@ from globe_walking_go2.go2_gym import MINI_GYM_ROOT_DIR
 
 from plots_plus import rollout
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 import tyro
-from ml_logger import logger
 
 
 def load_policy(checkpoint_path: Path):
@@ -35,7 +34,7 @@ def load_policy(checkpoint_path: Path):
     return policy
 
 
-def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True):
+def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True, device="cuda:0", reward_struct: Optional[str] = None):
     # Will be overwritten by the loaded config from parameters.pkl
     Cfg.env = Cfg.env_mini  # type: ignore
     Cfg.sensors = Cfg.sensors_mini
@@ -198,7 +197,10 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
         print("> Spring coefficient test: robot's feet should bounce off the ball")
         Cfg.domain_rand.ball_spring_coefficient_range = [0.7, 0.7]
 
-    env = VelocityTrackingEasyEnv(sim_device="cuda:0", headless=headless, cfg=Cfg)  # type: ignore
+    if device == "cpu":
+        Cfg.sim.use_gpu_pipeline = False
+
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
     env = HistoryWrapper(env)
 
     policy = load_policy(checkpoint_path)
@@ -211,20 +213,22 @@ def play_go2(
     dr_config="off",
     save_video=False,
     num_rollouts: int = 1,
+    device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0",
+    reward_struct: Optional[str] = None,
 ):
-    logger.log("START PLAY", flush=True)
-    logger.flush()
+    print("Start play", flush=True)
     checkpoint_path = run_path / "checkpoints"
-    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config)
-    logger.log("LOADED ENV and POLICY", flush=True)
-    logger.flush()
+    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, save_video=save_video, device=device, reward_struct=reward_struct)
+    print("Loaded env and policy", flush=True)
 
     all_stats_df = pd.DataFrame()
     for rollout_index in range(num_rollouts):
         if save_video:
             import imageio
             mp4_writer = imageio.get_writer("globe_walking.mp4", fps=50)
-
+            video_dir_path = checkpoint_path / "../videos"
+            video_dir_path.mkdir(exist_ok=True)
+            mp4_writer = imageio.get_writer(video_dir_path / f"final-{rollout_index}.mp4", fps=50)
         obs = env.reset()
 
         episode_length = 0
@@ -285,11 +289,7 @@ def play_go2(
 
         if save_video:
             mp4_writer.close()  # type: ignore
-            video_dir_path = checkpoint_path / "../videos"
-            video_dir_path.mkdir(exist_ok=True)
-            shutil.move(
-                "globe_walking.mp4", video_dir_path / f"final-{rollout_index}.mp4"
-            )
+
             # rounding performed to reduce file size
             time_steps_df = pd.DataFrame(time_steps, columns=["time_(s)"]).round(2)
             accumulated_rewards_df = pd.DataFrame(accumulated_rewards).round(2)
@@ -344,7 +344,7 @@ def play_go2(
     if save_video:
         all_stats_df.to_csv(checkpoint_path / ".." / "rollout_stats.csv")
         rollout.create_plots(
-            all_stats_df, checkpoint_path / ".." / "graphics", env="globe_walking_go2"
+            all_stats_df, checkpoint_path / ".." / "graphics" / "rollouts", env="globe_walking_go2"
         )
 
 
