@@ -21,6 +21,9 @@ def construct_metrics_df(run_log_path: Path) -> pd.DataFrame:
                 key = key
             elif "train/episode/rew" in key:
                 key = key.split("/")[2].split("rew ")[-1]
+                # globe walking does not have reward suffix
+                if "reward" not in key:
+                    key += " reward"
             elif key == "train/episode/episode length/mean":
                 key = "episode_length"
             elif "loss" in key:
@@ -52,7 +55,7 @@ def create_plots(
     )
 
     losses = metrics_df.columns[metrics_df.columns.str.match(".*loss")]
-    losses = {key: key.split(" loss")[0] for key in losses}
+    losses = {key: re.sub(" loss", "", key) for key in losses}
     losses_df: pd.DataFrame = metrics_df[list(losses.keys()) + ["iterations"]].rename(losses, axis=1)  # type: ignore
     losses_df = plots_plus.utils.rotate_df(
         losses_df, "iterations", losses.values(), "loss"
@@ -67,7 +70,7 @@ def create_plots(
     )
 
     rewards = metrics_df.columns[metrics_df.columns.str.match(".*reward")]
-    rewards = {key: key.split(" reward")[0] for key in rewards}
+    rewards = {key: re.sub(" reward", "", key) for key in rewards}
     rewards_df: pd.DataFrame = metrics_df[list(rewards.keys()) + ["iterations"]].rename(rewards, axis=1)  # type: ignore
     rewards_df = plots_plus.utils.rotate_df(
         rewards_df, "iterations", rewards.values(), "reward"
