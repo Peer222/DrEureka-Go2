@@ -1147,9 +1147,9 @@ class LeggedRobot(BaseTask):
                 except Exception as e:
                     raise Exception(f"exec(reward_struct) failed with exception: \n{e}")
                 self.reward_container = loaded_reward["EurekaReward"](self)
+                print("Loaded reward functions from string...")
             else:
                 self.reward_container = EurekaReward(self)
-                print("Loaded reward functions from string...")
         elif reward_container_name == "EurekaOriginalReward":
             self.reward_container = EurekaOriginalReward(self)
         else:

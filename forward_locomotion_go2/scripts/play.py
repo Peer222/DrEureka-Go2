@@ -17,12 +17,11 @@ from forward_locomotion_go2.go2_gym_learn.ppo.actor_critic import ActorCritic
 
 from plots_plus import rollout
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 import tyro
-from ml_logger import logger
 
 
-def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True, device="cuda:0"):
+def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=True, device="cuda:0", reward_struct = None):
     # Will be overwritten by the loaded config from parameters.pkl
     Cfg.commands = Cfg.commands_original
     Cfg.rewards = Cfg.rewards_eureka
@@ -65,8 +64,8 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
     Cfg.terrain.border_size = 0
     if device == "cpu":
         Cfg.sim.use_gpu_pipeline = False
-        Cfg.env.record_video = True
-    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
+
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
     env = HistoryWrapper(env)
 
     actor_critic = ActorCritic(
@@ -90,11 +89,12 @@ def play_go2(
     dr_config="off",
     save_video=False,
     num_rollouts: int = 1,
-    device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0"
+    device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0",
+    reward_struct: Optional[str] = None,
 ):
     print("Start play", flush=True)
     checkpoint_path = run_path / "checkpoints"
-    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, device=device)
+    env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, save_video=save_video, device=device, reward_struct=reward_struct)
     print("Loaded env and policy", flush=True)
 
     all_stats_df = pd.DataFrame()

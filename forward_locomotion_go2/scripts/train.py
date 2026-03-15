@@ -2,36 +2,9 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-def train_mc(iterations, command_config, reward_config, dr_config, eureka_target_velocity=None,
-             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", reward_struct: Optional[str] = None):
-    import isaacgym
-    assert isaacgym
-    import wandb
-    import torch
-    from ml_logger import logger
-    from plots_plus.train import create_plots
 
-    from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
+def update_config(Cfg, command_config, reward_config, dr_config, eureka_target_velocity: Optional[float]):
     from forward_locomotion_go2.go2_gym.envs.go2.go2_config import config_go2
-    from forward_locomotion_go2.go2_gym.envs.mini_cheetah.velocity_tracking import VelocityTrackingEasyEnv
-    from forward_locomotion_go2.go2_gym_learn.ppo import Runner
-    from forward_locomotion_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
-
-    from forward_locomotion_go2.go2_gym_learn.ppo.actor_critic import AC_Args
-    from forward_locomotion_go2.go2_gym_learn.ppo.ppo import PPO_Args
-    from forward_locomotion_go2.go2_gym_learn.ppo import RunnerArgs
-
-    from forward_locomotion_go2.scripts.play import play_go2
-    from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
-
-    set_seed(seed, torch_deterministic=False)
-
-    run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
-    logger.configure(time_now, root=str(run_dir))
-    run_dir = run_dir / str(time_now)
-    print(f"{run_dir=}")
-    run_dir.mkdir(parents=True, exist_ok=True)
 
     if command_config == "original":
         Cfg.commands = Cfg.commands_original
@@ -74,15 +47,41 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
         Cfg.env.num_observations = 42
     else:
         Cfg.commands.command_curriculum = False
+    return Cfg
 
-    logger.log(f"DEVICE: {device}")
-    if headless:
-        logger.log("Running headless... disable video recording for training")
-        Cfg.env.record_video = False
-    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
 
-    logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
-                    Cfg=vars(Cfg))
+def train_mc(iterations, command_config, reward_config, dr_config, eureka_target_velocity=None,
+             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", reward_struct: Optional[str] = None):
+    import isaacgym
+    assert isaacgym
+    import wandb
+    import torch
+    from ml_logger import logger
+    from plots_plus.train import create_plots
+
+    from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
+    from forward_locomotion_go2.go2_gym.envs.mini_cheetah.velocity_tracking import VelocityTrackingEasyEnv
+    from forward_locomotion_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
+
+    from forward_locomotion_go2.go2_gym_learn.ppo import Runner
+    from forward_locomotion_go2.go2_gym_learn.ppo.actor_critic import AC_Args
+    from forward_locomotion_go2.go2_gym_learn.ppo.ppo import PPO_Args
+    from forward_locomotion_go2.go2_gym_learn.ppo import RunnerArgs
+
+    from forward_locomotion_go2.scripts.play import play_go2
+    from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
+
+    set_seed(seed, torch_deterministic=False)
+
+    Cfg = update_config(Cfg, command_config, reward_config, dr_config, eureka_target_velocity)
+
+    # setup logging
+    run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
+    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
+    logger.configure(time_now, root=str(run_dir))
+    run_dir = run_dir / str(time_now)
+    print(f"{run_dir=}")
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     if not no_wandb:
         wandb.init(
@@ -100,7 +99,16 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
             },
         )
 
+    logger.log(f"{device=}")
+    if headless:
+        logger.log("Running headless... disable video recording for training")
+        Cfg.env.record_video = False
+    logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
+                    Cfg=vars(Cfg))
+
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
     env = HistoryWrapper(env)
+
     runner = Runner(env, device=device)
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
@@ -111,7 +119,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     del env
     torch.cuda.empty_cache()
     # run on cpu to prevent segmentation faults?
-    play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1, device="cpu")
+    play_go2(run_path=run_dir, dr_config=dr_config, save_video=True, headless=True, num_rollouts=1, device="cpu", reward_struct=reward_struct)
     logger.log(f"Rollout complete! Start plotting...", flush=True)
 
     create_plots(run_dir / "outputs.log", run_dir / "graphics")
