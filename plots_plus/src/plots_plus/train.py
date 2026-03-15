@@ -29,7 +29,7 @@ def construct_metrics_df(run_log_path: Path) -> pd.DataFrame:
             run_log[key] = run_log.get(key, []) + [float(val)]
 
     logged_data_df = pd.DataFrame(run_log)
-    print(logged_data_df)
+
     if "fitness_score" not in run_log.keys():
         raise Exception("'fitness_score' is missing in run log!")
 

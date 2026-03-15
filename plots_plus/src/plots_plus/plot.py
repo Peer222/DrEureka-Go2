@@ -16,7 +16,6 @@ def plot(filepath: Optional[Path] = None) -> None:
     """Shows figure or saves figure if filepath is specified
 
     Args:
-        plt (_type_): Matplotlib plot/ figure
         filepath (Optional[Path], optional): Path of saved file. Defaults to None.
     """
     if not filepath:
@@ -25,7 +24,6 @@ def plot(filepath: Optional[Path] = None) -> None:
         if not filepath.parent.is_dir():
             filepath.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(fname=filepath, dpi=300, bbox_inches="tight")
-        plt.figure(clear=True)
         plt.close()
 
 

@@ -264,9 +264,9 @@ if __name__ == "__main__":
     assert args.run_dir or (args.statspath and args.metricspath)
 
     if args.statspath:
-        full_stats_df = pd.read_csv(args.statspath)
+        full_stats_df = pd.read_csv(args.statspath, index_col=0)
     else:
-        full_stats_df = pd.read_csv(args.run_dir / "stats.csv")  # type: ignore
+        full_stats_df = pd.read_csv(args.run_dir / "stats.csv", index_col=0)  # type: ignore
     graphics_dir = args.result_dir
     if args.metricspath:
         metrics_df = plots_plus.utils.load_metric_series(

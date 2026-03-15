@@ -253,17 +253,20 @@ def get_limits(
     df: pd.DataFrame,
     col: str,
     method: Union[Tuple[Union[float, None], Union[float, None]], str],
+    pad_factor: float = 1.6,
 ) -> Union[Tuple[Union[float, None], Union[float, None]], Tuple[None]]:
     if isinstance(method, tuple):
         return method
     if method not in ["minmax", "auto"]:
         return (None,)
     if method == "minmax":
-        maximum = max(df[col])
-        return min(df[col]) - maximum / 50, maximum + maximum / 50
+        max_spread = max(df[col].abs())
+        return min(df[col]) - max_spread / 50, max(df[col]) + max_spread / 50
     elif method == "auto":
         percentiles = df[col].where(df[col] != 0).describe(percentiles=[0.025, 0.975])
-        pad_factor = 1.6
+        # catch only zero values
+        if percentiles["count"] == 0:
+            return -1, 1
         return max(pad_factor * percentiles["2.5%"], percentiles["min"]), min(
             pad_factor * percentiles["97.5%"], percentiles["max"]
         )
