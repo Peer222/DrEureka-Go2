@@ -1,7 +1,7 @@
 from isaacgym import gymutil, gymapi
 import torch
 from params_proto import Meta
-from typing import Union
+from typing import Union, Optional
 
 from forward_locomotion_go2.go2_gym.envs.base.legged_robot import LeggedRobot
 from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
@@ -9,7 +9,7 @@ from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 class VelocityTrackingEasyEnv(LeggedRobot):
     def __init__(self, sim_device, headless, num_envs=None, prone=False, deploy=False,
-                 cfg: Cfg = None, eval_cfg: Cfg = None, initial_dynamics_dict=None, physics_engine="SIM_PHYSX"):
+                 cfg: Cfg = None, eval_cfg: Cfg = None, initial_dynamics_dict=None, physics_engine="SIM_PHYSX", reward_struct: Optional[str] = None):
 
         if num_envs is not None:
             cfg.env.num_envs = num_envs
@@ -36,7 +36,7 @@ class VelocityTrackingEasyEnv(LeggedRobot):
 
         sim_params = gymapi.SimParams()
         gymutil.parse_sim_config(vars(cfg.sim), sim_params)
-        super().__init__(cfg, sim_params, physics_engine, sim_device, headless, eval_cfg, initial_dynamics_dict)
+        super().__init__(cfg, sim_params, physics_engine, sim_device, headless, eval_cfg, initial_dynamics_dict, reward_struct)
 
 
     def step(self, actions):

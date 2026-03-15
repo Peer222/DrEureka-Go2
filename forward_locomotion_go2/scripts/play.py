@@ -92,19 +92,18 @@ def play_go2(
     num_rollouts: int = 1,
     device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0"
 ):
-    logger.log("START PLAY", flush=True)
-    logger.flush()
+    print("Start play", flush=True)
     checkpoint_path = run_path / "checkpoints"
     env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, device=device)
-    logger.log("LOADED ENV and POLICY", flush=True)
-    logger.flush()
+    print("Loaded env and policy", flush=True)
 
     all_stats_df = pd.DataFrame()
     for rollout_index in range(num_rollouts):
         if save_video:
             import imageio
-            mp4_writer = imageio.get_writer("forward_locomotion.mp4", fps=50)
-
+            video_dir_path = checkpoint_path / "../videos"
+            video_dir_path.mkdir(exist_ok=True)
+            mp4_writer = imageio.get_writer(video_dir_path / f"final-{rollout_index}.mp4", fps=50)
         obs = env.reset()
 
         episode_length = 0
@@ -165,11 +164,7 @@ def play_go2(
 
         if save_video:
             mp4_writer.close()  # type: ignore
-            video_dir_path = checkpoint_path / "../videos"
-            video_dir_path.mkdir(exist_ok=True)
-            shutil.move(
-                "forward_locomotion.mp4", video_dir_path / f"final-{rollout_index}.mp4"
-            )
+
             # rounding performed to reduce file size
             time_steps_df = pd.DataFrame(time_steps, columns=["time_(s)"]).round(2)
             accumulated_rewards_df = pd.DataFrame(accumulated_rewards).round(2)

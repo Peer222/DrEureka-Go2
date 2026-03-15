@@ -1,10 +1,9 @@
 import argparse
 from pathlib import Path
-import os
+from typing import Optional
 
 def train_mc(iterations, command_config, reward_config, dr_config, eureka_target_velocity=None,
-             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0"):
-
+             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", reward_struct: Optional[str] = None):
     import isaacgym
     assert isaacgym
     import wandb
@@ -12,7 +11,6 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     from ml_logger import logger
     from plots_plus.train import create_plots
 
-    from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
     from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
     from forward_locomotion_go2.go2_gym.envs.go2.go2_config import config_go2
     from forward_locomotion_go2.go2_gym.envs.mini_cheetah.velocity_tracking import VelocityTrackingEasyEnv
@@ -24,8 +22,16 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     from forward_locomotion_go2.go2_gym_learn.ppo import RunnerArgs
 
     from forward_locomotion_go2.scripts.play import play_go2
+    from forward_locomotion_go2.go2_gym import MINI_GYM_ROOT_DIR
 
     set_seed(seed, torch_deterministic=False)
+
+    run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
+    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
+    logger.configure(time_now, root=str(run_dir))
+    run_dir = run_dir / str(time_now)
+    print(f"{run_dir=}")
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     if command_config == "original":
         Cfg.commands = Cfg.commands_original
@@ -73,12 +79,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     if headless:
         logger.log("Running headless... disable video recording for training")
         Cfg.env.record_video = False
-    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg)  # type: ignore
-
-    run_dir = Path(f"{MINI_GYM_ROOT_DIR}/../runs").resolve()
-    time_now = logger.utcnow(f'{wandb_group}_%Y-%m-%d_%H:%M:%S')
-    logger.configure(time_now, root=str(run_dir))
-    run_dir = run_dir / str(time_now)
+    env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
 
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                     Cfg=vars(Cfg))
@@ -105,16 +106,16 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
 
     # log video of trained policy rollout
     logger.log(f"Start rollout... Running headless on cpu with video rendering", flush=True)
-    logger.flush()
-
     # clean environment/gpu
     env.close()
     del env
     torch.cuda.empty_cache()
     # run on cpu to prevent segmentation faults?
     play_go2(run_path=run_dir, dr_config="off", save_video=True, headless=True, num_rollouts=1, device="cpu")
+    logger.log(f"Rollout complete! Start plotting...", flush=True)
 
     create_plots(run_dir / "outputs.log", run_dir / "graphics")
+    logger.log(f"Successfully completed!", flush=True)
 
 
 if __name__ == '__main__':
@@ -128,6 +129,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--command-config", type=str, default="off", choices=["original", "constrained", "off"])
     parser.add_argument("--reward-config", type=str, required=True, choices=["original", "eureka", "eureka_original"])
+    parser.add_argument("--reward-struct", type=str, default=None)
     parser.add_argument("--dr-config", type=str, required=True, choices=["original", "eureka", "eureka_original", "off"]) # TODO eureka original
 
     parser.add_argument("--eureka-target-velocity", type=float)
@@ -136,4 +138,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train_mc(iterations=args.iterations, command_config=args.command_config, reward_config=args.reward_config, dr_config=args.dr_config, eureka_target_velocity=args.eureka_target_velocity,
-              headless=args.headless, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device)
+              headless=args.headless, no_wandb=args.no_wandb, wandb_group=args.wandb_group, wandb_project=args.wandb_project, wandb_entity=args.wandb_entity, seed=args.seed, device=args.device, reward_struct=args.reward_struct)

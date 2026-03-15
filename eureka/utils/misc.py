@@ -8,7 +8,7 @@ import cv2
 from utils.extract_task_code import file_to_string  # type: ignore
 
 
-def filter_traceback(s):
+def filter_traceback(s: str):
     lines = s.split("\n")
     filtered_lines = []
     for i, line in enumerate(lines):
@@ -18,6 +18,8 @@ def filter_traceback(s):
                     break
                 filtered_lines.append(lines[j])
             return "\n".join(filtered_lines)
+        if line.startswith("Exception"):
+            return "\n" + line
     return ""  # Return an empty string if no Traceback is found
 
 

@@ -185,6 +185,7 @@ def add_failure_values(stats):
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
     workspace_dir = Path.cwd()
+    log_dir = Path("logs")  # dir to save run logs
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {str(EUREKA_ROOT_DIR)}")
 
@@ -306,7 +307,9 @@ def main(cfg):
     if cfg.use_submitit:
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
         submitit_executor.update_parameters(
-            cpus_per_task=1,
+            stderr_to_stdout=True,
+
+            cpus_per_task=4,
             mem="48G",
             partition="tnt",
             gres="gpu:rtx_3090:1",
@@ -314,23 +317,20 @@ def main(cfg):
             time="12:00:00",
         )
 
-        def train(train_cfg: Dict, log_path: Path):
-            import contextlib
-            with open(log_path, "w") as f:
-                with contextlib.redirect_stdout(f), contextlib.redirect_stderr(f):
-                    try:
-                        if cfg.env.env_name.lower() == "globe_walking_go2":
-                            from globe_walking_go2.scripts.train import train_go2
-                            train_go2(**train_cfg)
-                        elif cfg.env.env_name.lower() == "forward_locomotion_go2":
-                            from forward_locomotion_go2.scripts.train import train_mc
-                            train_cfg["command_config"] = "off"
-                            train_mc(**train_cfg)
-                        else:
-                            raise NotImplementedError(f"Not implemented environment: {cfg.env.env_name.lower()}")
-                    except Exception as e:
-                        print(f"Exception: {e}", file=sys.stderr)
-                        sys.stderr.flush()
+        def train(train_cfg: Dict):
+            try:
+                if cfg.env.env_name.lower() == "globe_walking_go2":
+                    from globe_walking_go2.scripts.train import train_go2
+                    train_go2(**train_cfg)
+                elif cfg.env.env_name.lower() == "forward_locomotion_go2":
+                    from forward_locomotion_go2.scripts.train import train_mc
+                    train_cfg["command_config"] = "off"
+                    train_mc(**train_cfg)
+                else:
+                    raise NotImplementedError(f"Not implemented environment: {cfg.env.env_name.lower()}")
+            except Exception as e:
+                print(f"Exception: {e} \n{e.__traceback__}\n", file=sys.stderr)
+                sys.stderr.flush()
 
     # Eureka generation loop
     for iter in range(last_complete_iteration + 1, cfg.iteration):
@@ -375,7 +375,7 @@ def main(cfg):
             cur_task_rew_code_string = task_rew_code_string.replace(
                 "# INSERT EUREKA REWARD HERE", code_string
             )
-            with open(output_file, "w") as file:  # TODO maybe adapt for concurrency
+            with open(f"rewards/iteration-{iter}_sample-{sample_idx}.py", "w") as file:
                 file.writelines(cur_task_rew_code_string + "\n")
 
             ### saving messages, llm response and generated reward code
@@ -387,14 +387,11 @@ def main(cfg):
                 file.write(
                     f'***Thinking:***\n\n{sample["message"]["thinking"]}\n\n***Final Answer:***\n\n{sample["message"]["answer"]}'
                 )
-            shutil.copy(output_file, f"rewards/iteration-{iter}_sample-{sample_idx}.py")
-            ###
 
-            rl_logpath = Path("logs") / f"iteration-{iter}_sample-{sample_idx}.log"
-            open(rl_logpath, "w")  # otherwise it might not be created in time
-
+            rl_logpath = log_dir / f"iteration-{iter}_sample-{sample_idx}.log"
             if cfg.use_submitit:
                 train_cfg = {
+                    "reward_struct": cur_task_rew_code_string,
                     "iterations": cfg.env.train_iterations,
                     "reward_config": "eureka",
                     "dr_config": "off",
@@ -404,9 +401,11 @@ def main(cfg):
                     "headless": True,
                     "device": "cuda:0",
                 }
-                job = submitit_executor.submit(train, train_cfg, rl_logpath)  # type: ignore
+                job = submitit_executor.submit(train, train_cfg)  # type: ignore
                 evaluation_runs.append(job)
             else:
+                # TODO make dynamic loading of reward-struct work here as well
+                shutil.copy(f"rewards/iteration-{iter}_sample-{sample_idx}.py", output_file)
                 with open(rl_logpath, "w") as f:
                     # Execute the python file with flags
                     command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
@@ -416,29 +415,30 @@ def main(cfg):
                     logging.info(command)
                     evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
                     used_gpus.append(free_eval_gpu)
-
-            # needed so that rewards are not overridden
-            block_until_training(
-                rl_logpath,
-                log_status=True,
-                iter_num=iter,
-                response_id=sample_idx,
-            )
-            if not cfg.use_submitit:
+                # needed so that rewards are not overridden
+                block_until_training(
+                    rl_logpath,
+                    log_status=True,
+                    iter_num=iter,
+                    response_id=sample_idx,
+                )
                 free_eval_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)
 
         # Gather evaluation results and construct reward reflection
         contents = []  # Logs and other feedback for LLM
         for response_id, evaluation_run in enumerate(evaluation_runs):
+            rl_logpath = log_dir / f"iteration-{iter}_sample-{response_id}.log"
             if cfg.use_submitit:
                 try:
                     evaluation_run.result()
+                    log = evaluation_run.stdout()
+                    with open(rl_logpath, "w") as log_file:
+                        log_file.write(log)
                 except Exception as e:
                     logging.info(f"Job {iter}-{response_id} failed! \n{e}\n")
             else:
                 evaluation_run.communicate()
 
-            rl_logpath = Path("logs") / f"iteration-{iter}_sample-{response_id}.log"
             with open(rl_logpath, "r") as f:
                 stdout_str = f.read()
 
@@ -510,7 +510,6 @@ def main(cfg):
 
                 # rollout video feedback
                 run_dir = next((workspace_dir / str(iter)).glob(f"{response_id}*"))
-                logging.info(f"{(run_dir / 'videos' / 'final-0.mp4')=}: {(run_dir / 'videos' / 'final-0.mp4').exists()}")
                 extract_frames(
                     run_dir / "videos" / "final-0.mp4",
                     workspace_dir / "tmp_frames",
@@ -530,7 +529,6 @@ def main(cfg):
                         ],
                     },
                 ]
-                logging.info(f"{critique_messages=}")
                 video_response, stats = analyze_rollout_video(
                     cfg, critique_messages, stats
                 )

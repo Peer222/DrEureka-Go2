@@ -44,7 +44,10 @@ export LD_LIBRARY_PATH=/bigwork/nhwpduep/.conda/envs/dr_eureka/lib:$LD_LIBRARY_P
 # prevent different compilers used for torch and gym extension
 export CXX=g++
 export CC=gcc
-rm -rf ~/.cache/torch_extensions
+export MAX_JOBS=4
+export TORCH_EXTENSIONS_DIR="/$BIGWORK/torch_extensions"
+rm -rf $TORCH_EXTENSIONS_DIR
+mkdir -p $TORCH_EXTENSIONS_DIR
 
 echo ""
 pip list
@@ -52,4 +55,5 @@ echo ""
 
 echo "Starting Gym..."
 export WANDB_MODE="offline"
+
 python v-eureka.py model=$MODEL env=$2 use_submitit=1

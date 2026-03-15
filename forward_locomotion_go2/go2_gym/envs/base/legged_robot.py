@@ -1,6 +1,6 @@
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 from isaacgym import gymtorch, gymapi, gymutil
 from isaacgym.torch_utils import *
@@ -21,7 +21,7 @@ from forward_locomotion_go2.go2_gym.rewards.eureka_original_reward import Eureka
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless, eval_cfg=None,
-                 initial_dynamics_dict=None):
+                 initial_dynamics_dict=None, reward_struct: Optional[str] = None):
         """ Parses the provided config file,
             calls create_sim() (which creates, simulation, terrain and environments),
             initilizes pytorch buffers used during training
@@ -53,7 +53,7 @@ class LeggedRobot(BaseTask):
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
         self._init_buffers()
 
-        self._prepare_reward_function()
+        self._prepare_reward_function(reward_struct)
         self.init_done = True
         self.record_now = False
         self.record_eval_now = False
@@ -1130,7 +1130,7 @@ class LeggedRobot(BaseTask):
              self.cfg.commands.ang_vel_yaw[1]])
         self.curriculum.set_to(low=low, high=high)
 
-    def _prepare_reward_function(self):
+    def _prepare_reward_function(self, reward_struct: Optional[str] = None):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.
             Looks for self._reward_<REWARD_NAME>, where <REWARD_NAME> are names of all non zero reward scales in the cfg.
         """
@@ -1140,7 +1140,16 @@ class LeggedRobot(BaseTask):
         if reward_container_name == "OriginalReward":
             self.reward_container = OriginalReward(self)
         elif reward_container_name == "EurekaReward":
-            self.reward_container = EurekaReward(self)
+            if reward_struct:
+                try:
+                    loaded_reward = {}
+                    exec(reward_struct, globals(), loaded_reward)
+                except Exception as e:
+                    raise Exception(f"exec(reward_struct) failed with exception: \n{e}")
+                self.reward_container = loaded_reward["EurekaReward"](self)
+            else:
+                self.reward_container = EurekaReward(self)
+                print("Loaded reward functions from string...")
         elif reward_container_name == "EurekaOriginalReward":
             self.reward_container = EurekaOriginalReward(self)
         else:
