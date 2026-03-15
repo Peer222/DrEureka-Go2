@@ -46,6 +46,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
         }
 
     full_response = None
+    start_time = time.time()
     for attempt in range(3):
         try:
             full_response = openai.ChatCompletion.create(
@@ -67,6 +68,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
     stats["video_critique_prompt_tokens"].append(full_response["usage"]["prompt_tokens"])  # type: ignore
     stats["video_critique_completion_tokens"].append(full_response["usage"]["completion_tokens"])  # type: ignore
     stats["video_critique_total_tokens"].append(full_response["usage"]["total_tokens"])  # type: ignore
+    logging.info(f"Generation of video review took {time.time() - start_time} seconds")
 
     response = full_response["choices"][0]  # type: ignore
     # split thinking and non thinking content
@@ -109,6 +111,7 @@ def generate_samples(cfg, messages, stats):
     num_prev_prompts = len(stats["prompt_tokens"])
 
     for s in range(cfg.sample):
+        start_time = time.time()
         response = None
         for attempt in range(3):
             try:
@@ -129,6 +132,7 @@ def generate_samples(cfg, messages, stats):
         stats["prompt_tokens"].append(response["usage"]["prompt_tokens"])  # type: ignore
         stats["completion_tokens"].append(response["usage"]["completion_tokens"])  # type: ignore
         stats["total_tokens"].append(response["usage"]["total_tokens"])  # type: ignore
+        logging.info(f"Generation {s} took {time.time() - start_time} seconds")
 
     # split thinking and non thinking content
     for i, response in enumerate(responses):
