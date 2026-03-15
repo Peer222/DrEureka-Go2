@@ -330,7 +330,7 @@ def main(cfg):
                         f"Not implemented environment: {cfg.env.env_name.lower()}"
                     )
             except Exception as e:
-                print(f"Exception: {e} \n{e.__traceback__}\n", file=sys.stderr)
+                print(f"Exception: {e}", file=sys.stderr)
                 sys.stderr.flush()
 
     # Eureka generation loop
