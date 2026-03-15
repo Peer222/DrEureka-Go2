@@ -311,7 +311,7 @@ def main(cfg):
                     "dr_config": "off",
                     "no_wandb": not cfg.use_run_wandb,
                     # also used as result directory path
-                    "wandb_group": f"v-eureka/{TIMESTAMP}/{iter}/{sample_idx}",
+                    "wandb_group": f"eureka/{TIMESTAMP}/{iter}/{sample_idx}",
                     "headless": True,
                     "device": "cuda:0",
                 }
@@ -324,7 +324,7 @@ def main(cfg):
                 )
                 with open(rl_logpath, "w") as f:
                     # Execute the python file with flags
-                    command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
+                    command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
                     command = command.split(" ")
                     if not cfg.use_run_wandb:
                         command.append("--no-wandb")
