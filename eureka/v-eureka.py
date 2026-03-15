@@ -59,7 +59,9 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
             logging.info(f"Attempt {attempt+1} failed with error: {e}")
             time.sleep(1)
     if full_response is None:
-        logging.error("Code terminated due to too many failed attempts! (vision critique)")
+        logging.error(
+            "Code terminated due to too many failed attempts! (vision critique)"
+        )
         exit(1)
 
     stats["video_critique_prompt_tokens"].append(full_response["usage"]["prompt_tokens"])  # type: ignore
@@ -266,9 +268,7 @@ def main(cfg):
         logging.info(f"Last complete iteration: {last_complete_iteration}")
         best_idx = full_stats[
             full_stats["iteration"] <= last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)[
-            "fitness_score_max"
-        ]
+        ].idxmax(numeric_only=True)["fitness_score_max"]
         logging.info(f"Best Index: {best_idx}")
         maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
         maximum_iteration = full_stats.iloc[best_idx]["iteration"]
@@ -276,9 +276,7 @@ def main(cfg):
 
         best_current_idx = full_stats[
             full_stats["iteration"] == last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)[
-            "fitness_score_max"
-        ]
+        ].idxmax(numeric_only=True)["fitness_score_max"]
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         if last_complete_iteration > 0:
@@ -308,7 +306,6 @@ def main(cfg):
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
         submitit_executor.update_parameters(
             stderr_to_stdout=True,
-
             cpus_per_task=4,
             mem="48G",
             partition="tnt",
@@ -321,13 +318,17 @@ def main(cfg):
             try:
                 if cfg.env.env_name.lower() == "globe_walking_go2":
                     from globe_walking_go2.scripts.train import train_go2
+
                     train_go2(**train_cfg)
                 elif cfg.env.env_name.lower() == "forward_locomotion_go2":
                     from forward_locomotion_go2.scripts.train import train_mc
+
                     train_cfg["command_config"] = "off"
                     train_mc(**train_cfg)
                 else:
-                    raise NotImplementedError(f"Not implemented environment: {cfg.env.env_name.lower()}")
+                    raise NotImplementedError(
+                        f"Not implemented environment: {cfg.env.env_name.lower()}"
+                    )
             except Exception as e:
                 print(f"Exception: {e} \n{e.__traceback__}\n", file=sys.stderr)
                 sys.stderr.flush()
@@ -395,7 +396,7 @@ def main(cfg):
                     "iterations": cfg.env.train_iterations,
                     "reward_config": "eureka",
                     "dr_config": "off",
-                    "no_wandb": True,
+                    "no_wandb": not cfg.use_run_wandb,
                     # also used as result directory path
                     "wandb_group": f"v-eureka/{TIMESTAMP}/{iter}/{sample_idx}",
                     "headless": True,
@@ -405,7 +406,9 @@ def main(cfg):
                 evaluation_runs.append(job)
             else:
                 # TODO make dynamic loading of reward-struct work here as well
-                shutil.copy(f"rewards/iteration-{iter}_sample-{sample_idx}.py", output_file)
+                shutil.copy(
+                    f"rewards/iteration-{iter}_sample-{sample_idx}.py", output_file
+                )
                 with open(rl_logpath, "w") as f:
                     # Execute the python file with flags
                     command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
@@ -413,7 +416,9 @@ def main(cfg):
                     if not cfg.use_run_wandb:
                         command.append("--no-wandb")
                     logging.info(command)
-                    evaluation_runs.append(subprocess.Popen(command, stdout=f, stderr=f))
+                    evaluation_runs.append(
+                        subprocess.Popen(command, stdout=f, stderr=f)
+                    )
                     used_gpus.append(free_eval_gpu)
                 # needed so that rewards are not overridden
                 block_until_training(
@@ -422,7 +427,9 @@ def main(cfg):
                     iter_num=iter,
                     response_id=sample_idx,
                 )
-                free_eval_gpu: int = block_until_free_gpu(evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu)
+                free_eval_gpu: int = block_until_free_gpu(
+                    evaluation_runs, used_gpus, cfg.num_gpus, cfg.processes_per_gpu
+                )
 
         # Gather evaluation results and construct reward reflection
         contents = []  # Logs and other feedback for LLM
@@ -532,7 +539,9 @@ def main(cfg):
                 video_response, stats = analyze_rollout_video(
                     cfg, critique_messages, stats
                 )
-                content += video_feedback.replace("{critique_feedback}", video_response["message"]["answer"])
+                content += video_feedback.replace(
+                    "{critique_feedback}", video_response["message"]["answer"]
+                )
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)
