@@ -55,7 +55,7 @@ def generate_samples(cfg, messages, stats):
         stats["prompt_tokens"].append(response["usage"]["prompt_tokens"])  # type: ignore
         stats["completion_tokens"].append(response["usage"]["completion_tokens"])  # type: ignore
         stats["total_tokens"].append(response["usage"]["total_tokens"])  # type: ignore
-        logging.info(f"Generation {s} took {time.time() - start_time} seconds")
+        logging.info(f"Generation {s} took {(time.time() - start_time):.1f} seconds")
 
     # split thinking and non thinking content
     for i, response in enumerate(responses):
