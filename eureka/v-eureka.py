@@ -14,6 +14,7 @@ import shutil
 import time
 import requests
 from ml_logger import logger
+import ast
 
 # relative imports for editor
 from utils.misc import *  # type: ignore
@@ -268,6 +269,9 @@ def main(cfg):
     if cfg.resume:
         logging.info(f"Resume from stats file: {cfg.stats_file}")
         full_stats = pd.read_csv(cfg.stats_file)
+        full_stats["reward_names"] = full_stats["reward_names"].apply(
+            lambda x: ast.literal_eval(x) if isinstance(x, str) else x
+        )
         last_complete_iteration = len(full_stats) // cfg.sample - 1
         logging.info(f"Last complete iteration: {last_complete_iteration}")
         best_idx = full_stats[
