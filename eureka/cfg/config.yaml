@@ -9,17 +9,18 @@ hydra:
     chdir: True
 
 # LLM parameters
+port: 8000
 model_path: /bigwork/nhwpduep/master_thesis/models/
 model: cmd_line_argument  # original: gpt-4-0125-preview
-thinking_enabled: True  # for Qwen3 models with thinking (does not work for Qwen3.5)
+thinking_enabled: True  # for Qwen3 models with thinking
 include_thinking_in_prompt: False
 
 use_custom_params: True
-temperature: 1.0
+temperature: 0.6
 top_p: 0.95
 top_k: 20
 min_p: 0.0
-presence_penalty: 1.5
+presence_penalty: 0.0
 repetition_penalty: 1.0
 
 # Eureka parameters

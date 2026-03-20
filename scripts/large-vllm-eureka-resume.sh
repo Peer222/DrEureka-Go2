@@ -12,9 +12,11 @@
 
 
 if [ "$#" -ne 3 ]; then
-    echo "Usage: $1 <llm-type> [open-ai/gpt-oss-20b, Qwen/Qwen3-32B-AWQ, Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8] $2 <environment> $3 <path/to/stats.csv>"
+    echo "Usage: $1 <llm-type> [open-ai/gpt-oss-20b, Qwen/Qwen3-32B-AWQ, Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8] $2 <environment> $3 </path/to/stats.csv>"
     exit 1
 fi
+
+if [[ $3 == /* ]]; then echo "absolute path provided"; else echo "absolute path to stats.csv required"; exit 1; fi
 
 module load Miniconda3
 conda activate vllm

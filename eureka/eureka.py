@@ -1,5 +1,6 @@
 import hydra
 import sys
+import traceback
 import numpy as np
 import json
 import pandas as pd
@@ -28,7 +29,7 @@ ROOT_DIR = EUREKA_ROOT_DIR / ".."
 
 def generate_samples(cfg, messages, stats):
     openai.api_key = "..."
-    vllm_host = "http://0.0.0.0:8000"
+    vllm_host = f"http://0.0.0.0:{cfg.port}"
     openai.api_base = f"{vllm_host}/v1"
 
     responses = []
@@ -234,6 +235,9 @@ def main(cfg):
             gres="gpu:rtx_3090:1",
             job_name="run",
             time="12:00:00",
+            additional_parameters={
+                "reservation": "tnt"
+            }
         )
 
         def train(train_cfg: Dict):
@@ -253,6 +257,7 @@ def main(cfg):
                     )
             except Exception as e:
                 print(f"Exception: {e}", file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
                 sys.stderr.flush()
 
     # Eureka generation loop

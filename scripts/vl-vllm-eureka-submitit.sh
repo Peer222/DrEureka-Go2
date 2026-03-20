@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=tnt
+#SBATCH --reservation=tnt
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
