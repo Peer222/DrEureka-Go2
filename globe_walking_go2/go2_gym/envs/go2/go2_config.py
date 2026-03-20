@@ -5,7 +5,7 @@ from params_proto import Meta
 from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
-def config_go2(Cnfg: Cfg):
+def config_go2(Cnfg: Union[Cfg, Meta]):
     Cnfg.robot.name = "go2"  # from train script
     _ = Cnfg.init_state
 
@@ -55,16 +55,6 @@ def config_go2(Cnfg: Cfg):
     _.soft_dof_pos_limit = 0.9
     _.use_terminal_body_height = True
 
-    _ = Cnfg.terrain
-    _.mesh_type = 'trimesh' # or plane
-    _.measure_heights = False
-    _.terrain_noise_magnitude = 0.0
-    _.teleport_robots = True
-    _.border_size = 50
-
-    _.terrain_proportions = [0, 0, 0, 0, 0, 0, 0, 0, 1.0]
-    _.curriculum = False
-
     _ = Cnfg.env
     _.num_observations = 56
     _.num_observation_history = 15 # from train script
@@ -108,3 +98,6 @@ def config_go2(Cnfg: Cfg):
     Cnfg.terrain.min_step_run = 0.25
     Cnfg.terrain.max_step_run = 0.4
     Cnfg.terrain.max_init_terrain_level = 1
+
+    Cnfg.terrain.measure_heights = False
+    Cnfg.terrain.terrain_noise_magnitude = 0.0
