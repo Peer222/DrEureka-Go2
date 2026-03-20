@@ -82,31 +82,32 @@ def train_go2(iterations, reward_config, dr_config, headless=True, resume_path=N
             },
         )
 
-    logger.log(f"{device=}")
+    print(f"{device=}")
     if headless:
-        logger.log("Running headless... disable video recording for training")
+        print("Running headless... disable video recording for training")
         Cfg.env.record_video = False  # type: ignore
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
                     Cfg=vars(Cfg))
 
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
     env = HistoryWrapper(env)
+    print("Start training...", flush=True)
 
     runner = Runner(env, device=device, multi_gpu=Cfg.multi_gpu)
     runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
 
     # log video of trained policy rollout
-    logger.log(f"Start rollout... Running headless on cpu with video rendering", flush=True)
+    print(f"Start rollout... Running headless on cpu with video rendering", flush=True)
     # clean environment/gpu
     env.close()
     del env
     torch.cuda.empty_cache()
     # run on cpu to prevent segmentation faults?
     play_go2(run_path=run_dir, dr_config=dr_config, save_video=True, headless=True, num_rollouts=num_eval_rollouts, device="cpu", reward_struct=reward_struct)
-    logger.log(f"Rollout complete! Start plotting...", flush=True)
+    print(f"Rollout complete! Start plotting...", flush=True)
 
     create_plots(run_dir / "outputs.log", run_dir / "graphics")
-    logger.log(f"Successfully completed!", flush=True)
+    print(f"Successfully completed!", flush=True)
 
 
 if __name__ == '__main__':
