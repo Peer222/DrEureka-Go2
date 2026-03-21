@@ -48,6 +48,8 @@ def scatterplot(
     if style:
         style = clean_variable(style)
 
+    colorpalette = strip_palette(colorpalette, df, hue)
+
     plt.figure(figsize=(10, 7))
     ax = sns.scatterplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
@@ -91,6 +93,8 @@ def lineplot(
     if style:
         style = clean_variable(style)
 
+    colorpalette = strip_palette(colorpalette, df, hue)
+
     plt.figure(figsize=(10, 7))
     ax = sns.lineplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
@@ -126,20 +130,46 @@ def scatteredlineplot(
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
+    style: Optional[str] = None,
+    alpha: float = 1.0,
+    errorbar: Optional[Tuple[str, float]] = ("ci", 95),
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
     y = clean_variable(y)
     if hue:
         hue = clean_variable(hue)
+    if style:
+        style = clean_variable(style)
+
+    colorpalette = strip_palette(colorpalette, df, hue)
 
     plt.figure(figsize=(10, 7))
     ax = sns.lineplot(
-        df, x=x, y=y, hue=hue, palette=colorpalette, legend=False, hue_order=hue_order
+        df,
+        x=x,
+        y=y,
+        hue=hue,
+        palette=colorpalette,
+        legend=False,
+        hue_order=hue_order,
+        style=style,
+        alpha=alpha,
+        errorbar=errorbar,
     )
     ax = sns.scatterplot(
-        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order
+        df,
+        x=x,
+        y=y,
+        hue=hue,
+        palette=colorpalette,
+        hue_order=hue_order,
+        style=style,
+        alpha=alpha,
     )
+    if style:
+        # TODO only works for hue=Version, style=Task (with two tasks)
+        multi_legend(ax, colorpalette)
 
     ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
     ax.set_ylim(*get_limits(df, y, ylim))  # type: ignore
@@ -178,6 +208,8 @@ def multilineplot(
     if hue:
         hue = clean_variable(hue)
         hue_order = df[hue].drop_duplicates().sort_values()
+
+    colorpalette = strip_palette(colorpalette, df, hue)
 
     ax = None
     plt.figure(figsize=(10, 7))
@@ -237,6 +269,8 @@ def gridlineplot(
     y = clean_variable(y)
     hue = clean_variable(hue)
     axes = clean_variable(axes)
+
+    colorpalette = strip_palette(colorpalette, df, hue)
 
     groups = df.groupby(axes)
 

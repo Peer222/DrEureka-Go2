@@ -27,10 +27,10 @@ class Color:
 
 
 LLM_COLOR_MAP = [
-    Color.BLUE,
+    Color.DARK_BLUE,
     Color.YELLOW,
-    Color.RED,
-    Color.GREEN,
+    Color.DARK_RED,
+    Color.DARK_GREEN,
 ]  # TODO check and extend
 LLM_ORDER = ["Qwen/Qwen3-32B-AWQ"]  # TODO extend and apply
 

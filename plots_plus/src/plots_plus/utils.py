@@ -1,10 +1,12 @@
-from typing import List, Tuple, Literal, Union, Iterable, Dict
+from typing import List, Tuple, Literal, Union, Iterable, Dict, Optional
 from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.legend_handler import HandlerTuple
+from matplotlib.lines import Line2D
 
 
 def clean_df_labels(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,7 +46,12 @@ def to_execution_rates(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame with iteration and execution_rate columns
     """
-    execution_rates = df.groupby("iteration", as_index=False)["execution"].mean()
+    grouping_vars = ["iteration"]
+    if "version" in df.columns:
+        grouping_vars.append("version")
+    if "task" in df.columns:
+        grouping_vars.append("task")
+    execution_rates = df.groupby(grouping_vars, as_index=False)["execution"].mean()
     return pd.DataFrame(execution_rates).rename({"execution": "execution_rate"}, axis=1)
 
 
@@ -273,6 +280,58 @@ def get_limits(
     raise NotImplementedError(f"{method} not implemented for limits")
 
 
+def strip_palette(
+    palette: Union[List, mpl.colors.Colormap], df: pd.DataFrame, hue: Optional[str]
+) -> Union[List, mpl.colors.Colormap]:
+    if isinstance(palette, mpl.colors.Colormap) or hue is None:
+        return palette
+    num = min(len(palette), len(df[hue].drop_duplicates()))
+    return [palette[i] for i in range(num)]
+
+
+def multi_legend(ax, colorpalette: Union[List, mpl.colors.Colormap]):
+    """Expects axis with scatterplot legend in form of Version, ..., Task, ...
+
+    Args:
+        ax (axes): Axis
+        colorpalette (Union[List, mpl.colors.Colormap]): Colorpalette
+    """
+    scatter_handles, labels = ax.get_legend_handles_labels()
+    line_handles = []
+    i = 0
+    for label in labels:
+        if label == "Version":
+            i = 0
+            line_handles.append(Line2D([], [], color="white", label=label))
+            continue
+        if label == "Task":
+            i = 0
+            line_handles.append(Line2D([], [], color="white", label=label))
+            # 2 tasks
+            line_handles.append(Line2D([], [], linestyle="solid", label=label))
+            line_handles.append(Line2D([], [], linestyle="dashed", label=label))
+            break
+
+        if isinstance(colorpalette, mpl.colors.Colormap):
+            color = colorpalette(i * (1 / len(labels)))
+        else:
+            color = colorpalette[i]
+        line = Line2D([], [], color=color, linestyle="solid", label=label)
+        line_handles.append(line)
+        i += 1
+
+    # legend containing line and marker symbols
+    combined_handles = []
+    for h1, h2 in zip(line_handles, scatter_handles):
+        combined_handles.append((h1, h2))
+    ax.legend(
+        handles=combined_handles,
+        labels=labels,
+        handler_map={tuple: HandlerTuple(ndivide=None, pad=0.1)},  # type: ignore
+        title=None,
+    )
+
+
 # control package visibility
 __all__ = [
     "axgrid",
@@ -285,6 +344,8 @@ __all__ = [
     "get_correlation_df",
     "compute_correlation",
     "get_limits",
+    "strip_palette",
+    "multi_legend",
 ]
 
 
