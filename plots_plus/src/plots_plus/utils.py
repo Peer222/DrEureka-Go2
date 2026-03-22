@@ -281,21 +281,25 @@ def get_limits(
 
 
 def strip_palette(
-    palette: Union[List, mpl.colors.Colormap], df: pd.DataFrame, hue: Optional[str]
-) -> Union[List, mpl.colors.Colormap]:
-    if isinstance(palette, mpl.colors.Colormap) or hue is None:
+    palette: Union[List, mpl.colors.Colormap, None], df: pd.DataFrame, hue: Optional[str]
+) -> Union[List, mpl.colors.Colormap, None]:
+    if hue is None or palette is None:
+        return None
+    if isinstance(palette, mpl.colors.Colormap):
         return palette
     num = min(len(palette), len(df[hue].drop_duplicates()))
     return [palette[i] for i in range(num)]
 
 
-def multi_legend(ax, colorpalette: Union[List, mpl.colors.Colormap]):
+def multi_legend(ax, colorpalette: Union[List, mpl.colors.Colormap, None]):
     """Expects axis with scatterplot legend in form of Version, ..., Task, ...
 
     Args:
         ax (axes): Axis
         colorpalette (Union[List, mpl.colors.Colormap]): Colorpalette
     """
+    if colorpalette is None:
+        return
     scatter_handles, labels = ax.get_legend_handles_labels()
     line_handles = []
     i = 0

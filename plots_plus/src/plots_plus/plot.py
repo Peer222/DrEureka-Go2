@@ -32,7 +32,7 @@ def scatterplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: Union[List, mpl.colors.Colormap] = LLM_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
@@ -67,7 +67,8 @@ def scatterplot(
 
     if title:
         plt.title(title)
-    plt.legend()
+    if hue:
+        plt.legend()
     plot(filepath)
 
 
@@ -76,7 +77,7 @@ def lineplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, Union[float, None]], float], str] = "minmax",
@@ -115,7 +116,8 @@ def lineplot(
 
     if title:
         plt.title(title)
-    plt.legend()
+    if hue:
+        plt.legend()
     plot(filepath)
 
 
@@ -124,7 +126,7 @@ def scatteredlineplot(
     x: str,
     y: str,
     hue: Optional[str] = None,
-    colorpalette: Union[List, mpl.colors.Colormap] = LLM_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = LLM_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
@@ -154,7 +156,7 @@ def scatteredlineplot(
         legend=False,
         hue_order=hue_order,
         style=style,
-        alpha=alpha,
+        #alpha=alpha,
         errorbar=errorbar,
     )
     ax = sns.scatterplot(
@@ -193,7 +195,7 @@ def multilineplot(
     y: str,
     lines: str,
     hue: Optional[str] = None,
-    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
@@ -257,7 +259,7 @@ def gridlineplot(
     y: str,
     hue: str,
     axes: str,
-    colorpalette: Union[List, mpl.colors.Colormap] = ITERATION_COLOR_MAP,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = ITERATION_COLOR_MAP,
     filepath: Optional[Path] = None,
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",

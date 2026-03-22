@@ -51,6 +51,7 @@ def create_plots(
         x="iterations",
         y="episode_length",
         ylim=(0, None),
+        colorpalette=None,
         filepath=graphics_dir / "episode_length.png",
     )
 

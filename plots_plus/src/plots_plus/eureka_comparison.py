@@ -13,6 +13,7 @@ def create_plots(
     full_stats_df: pd.DataFrame,
     metrics_df: pd.DataFrame,
     graphics_dir: Path,
+    version_order: List[str],
 ):
     full_stats_df["reward_names"] = full_stats_df["reward_names"].apply(
         lambda x: ast.literal_eval(x) if isinstance(x, str) else x
@@ -26,6 +27,7 @@ def create_plots(
         hue="version",
         style="task",
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        hue_order=version_order,
         ylim=(-0.1, 1.1),
         filepath=graphics_dir / "execution_rates.png",
     )
@@ -39,8 +41,9 @@ def create_plots(
         hue="version",
         style="task",
         ylim=(-10, None),
-        alpha=0.6,
+        alpha=0.75,
         errorbar=None,
+        hue_order=version_order,
         filepath=graphics_dir / "fitness_score_max.png",
     )
     plots_plus.scatteredlineplot(
@@ -49,8 +52,9 @@ def create_plots(
         y="reward_total_max",
         hue="version",
         style="task",
-        alpha=0.6,
+        alpha=0.75,
         errorbar=None,
+        hue_order=version_order,
         filepath=graphics_dir / "reward_total_max.png",
     )
 
@@ -61,8 +65,9 @@ def create_plots(
         hue="version",
         style="task",
         ylim=(0, None),
-        alpha=0.6,
+        alpha=0.75,
         errorbar=None,
+        hue_order=version_order,
         filepath=graphics_dir / "num_reward_functions.png",
     )
 
@@ -86,8 +91,9 @@ def create_plots(
         hue="version",
         style="task",
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        hue_order=version_order,
         ylim=(0, None),
-        alpha=0.6,
+        alpha=0.75,
         filepath=graphics_dir / "reward_names.png",
     )
 
@@ -99,7 +105,8 @@ def create_plots(
         style="task",
         ylim=(0, None),
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-        alpha=0.6,
+        hue_order=version_order,
+        alpha=0.75,
         filepath=graphics_dir / "completion_tokens.png",
     )
     plots_plus.lineplot(
@@ -110,7 +117,8 @@ def create_plots(
         style="task",
         ylim=(0, None),
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-        alpha=0.6,
+        hue_order=version_order,
+        alpha=0.75,
         filepath=graphics_dir / "thinking_tokens.png",
     )
     plots_plus.lineplot(
@@ -121,7 +129,8 @@ def create_plots(
         style="task",
         ylim=(0, None),
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-        alpha=0.6,
+        hue_order=version_order,
+        alpha=0.75,
         filepath=graphics_dir / "answer_tokens.png",
     )
 
@@ -143,7 +152,8 @@ def create_plots(
             style="task",
             ylim=(0, None),
             colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-            alpha=0.6,
+            hue_order=version_order,
+            alpha=0.75,
             filepath=graphics_dir / "video_critique_completion_tokens.png",
         )
         plots_plus.lineplot(
@@ -154,7 +164,8 @@ def create_plots(
             style="task",
             ylim=(0, None),
             colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-            alpha=0.6,
+            hue_order=version_order,
+            alpha=0.75,
             filepath=graphics_dir / "video_critique_thinking_tokens.png",
         )
         plots_plus.lineplot(
@@ -165,7 +176,8 @@ def create_plots(
             style="task",
             ylim=(0, None),
             colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-            alpha=0.6,
+            hue_order=version_order,
+            alpha=0.75,
             filepath=graphics_dir / "video_critique_answer_tokens.png",
         )
 
@@ -197,7 +209,8 @@ def create_plots(
             style="task",
             ylim=(-1.1, 1.1),
             colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-            alpha=0.6,
+            hue_order=version_order,
+            alpha=0.75,
             filepath=graphics_dir / f"rew_fitness_correlation_{corr_method}.png",
         )
 
@@ -224,6 +237,7 @@ if __name__ == "__main__":
     args.result_dir.mkdir(parents=True, exist_ok=True)
     graphics_dir = args.result_dir
 
+    version_order = []
     all_stats_df = pd.DataFrame()
     all_metrics_df = pd.DataFrame()
     for run_dir in args.run_dirs:
@@ -236,7 +250,7 @@ if __name__ == "__main__":
             raise Exception(
                 f"Unknown model version found: {stats_df['version'].iloc[0]}"
             )
-
+        version_order.append(match.group(1))
         stats_df["version"] = match.group(1)
         metrics_df["version"] = match.group(1)
         if "GW" in run_dir.stem:
@@ -253,8 +267,10 @@ if __name__ == "__main__":
         all_stats_df = pd.concat([all_stats_df, stats_df])
         all_metrics_df = pd.concat([all_metrics_df, metrics_df])
 
+    version_order = list(dict.fromkeys(version_order))
     create_plots(
         all_stats_df,
         all_metrics_df,
         args.result_dir,
+        version_order
     )
