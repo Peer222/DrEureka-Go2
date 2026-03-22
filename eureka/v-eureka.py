@@ -100,7 +100,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
         stats["video_critique_answer_tokens"].append(
             stats["video_critique_completion_tokens"][-1]
         )
-    logging.info(f"VLM critique final response: {response['message']['answer']}")
+    # logging.info(f"VLM critique final response: {response['message']['answer']}")
     return response, stats
 
 
