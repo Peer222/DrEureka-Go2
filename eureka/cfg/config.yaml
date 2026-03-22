@@ -30,6 +30,8 @@ feedback_series_size: 10   # Number of values included in feedback prompt per me
 fps: 25                    # video feedback
 max_video_length: 10       # Maximum length of video in seconds (taken from end)
 
+topk_sampling: 8
+
 # GPU setup
 use_submitit: False        # set in submitit scripts (if set latter options are ignored)
 num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat file not found)
