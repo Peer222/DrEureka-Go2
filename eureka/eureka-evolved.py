@@ -41,10 +41,10 @@ def load_prompting(cfg):
         prompt_dir = EUREKA_ROOT_DIR / "prompts"
         initial_system = file_to_string(prompt_dir / "initial_system.txt")
         code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")
-        code_feedback = file_to_string(prompt_dir / "code_feedback.txt")
+        code_feedback = file_to_string(prompt_dir / "code_feedback_evolved.txt")
         initial_user = file_to_string(prompt_dir / "initial_user.txt")
-        reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")
-        policy_feedback = file_to_string(prompt_dir / "policy_feedback.txt")
+        reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}_evolved.txt")
+        policy_feedback = file_to_string(prompt_dir / "policy_feedback_evolved.txt")
         # not implemented
         # execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")
     return Prompts
@@ -73,16 +73,22 @@ def construct_dialog(cfg, database_df: pd.DataFrame) -> List[Dict[str, str]]:
         topk_database = database_df
         if cfg.topk_sampling:
             topk_database = topk_database.sort_values(by="fitness_score", ascending=False).iloc[:cfg.topk_sampling]
-        history_sample = topk_database.sample(1, weights="fitness_score")
-        messages += [
-                {
-                    "role": "assistant",
-                    "content": history_sample["generation"].item(),
-                }
-            ]
-        epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
-        feedback = prompts.policy_feedback.format(epoch_freq=epoch_freq) + history_sample["training_summarization"].item() + prompts.code_feedback + prompts.code_output_tip
-        messages += [{"role": "user", "content": feedback}]
+        history_samples = topk_database.sample(cfg.num_examples, weights="fitness_score")
+        history_samples: pd.DataFrame = history_samples.sort_values(by="fitness_score", ascending=True)
+
+        for i, (index, history_sample) in enumerate(history_samples.iterrows()):
+            prefix = f"Version {i + 1}:\n\n" if cfg.num_examples > 1 else ""
+            messages += [
+                    {
+                        "role": "assistant",
+                        "content": prefix + history_sample["generation"],
+                    }
+                ]
+            epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
+            feedback = prompts.policy_feedback.format(version=i + 1, epoch_freq=epoch_freq) + history_sample["training_summarization"]
+            messages += [{"role": "user", "content": feedback}]
+        instructions = prompts.code_feedback + prompts.code_output_tip
+        messages += [{"role": "user", "content": instructions}]
     return messages
 
 
@@ -428,6 +434,7 @@ def main(cfg):
                 stats["num_reward_functions"].append(num_rewards)
                 stats["reward_names"].append(reward_names)
                 iteration_metrics.append(metrics)
+                logging.info(f"{iter}-{response_id}: {fitness_score=}")
 
                 # add successful run to database
                 database_df.loc[iter * cfg.sample + response_id] = [
