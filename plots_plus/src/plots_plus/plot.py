@@ -265,6 +265,9 @@ def gridlineplot(
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     markers: Optional[bool] = None,
+    hue_order: Optional[List[str]] = None,
+    alpha: float = 1.0,
+    errorbar: Optional[Tuple[str, float]] = ("ci", 95),
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -285,16 +288,18 @@ def gridlineplot(
         nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
     )
 
-    names: List[str] = list(df[hue].drop_duplicates().sort_values())
-    cmap = mpl.colors.LinearSegmentedColormap.from_list(
-        "multiline", colorpalette, N=len(names)
-    )
-    colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
+    if not hue_order:
+        names: List[str] = list(df[hue].drop_duplicates().sort_values())
+        cmap = mpl.colors.LinearSegmentedColormap.from_list(
+            "multiline", colorpalette, N=len(names)
+        )
+        colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
+        hue_order = names
 
     for ax, (name, group) in zip(axs, groups):
         name = clean_variable(str(name))
         sns.lineplot(
-            group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=names, ax=ax
+            group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha, errorbar=errorbar
         )
 
         ax.set_title(name)
@@ -303,7 +308,7 @@ def gridlineplot(
 
         if markers:
             sns.scatterplot(
-                group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=names, ax=ax
+                group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha
             )
 
         ax.tick_params(direction="in", length=0)
@@ -318,7 +323,8 @@ def gridlineplot(
     for ax in axs:
         handles, labels = ax.get_legend_handles_labels()
         for h, l in zip(handles, labels):
-            legend_items[clean_variable(l)] = h  # deduplicate by label
+            #legend_items[clean_variable(l)] = h  # deduplicate by label
+            legend_items[l] = h  # deduplicate by label
         axlegend = ax.get_legend()
         if axlegend:
             axlegend.remove()

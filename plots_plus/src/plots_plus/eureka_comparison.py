@@ -3,6 +3,7 @@ import ast
 from dataclasses import dataclass
 from typing import List, Literal, Optional
 import re
+import sys
 
 import pandas as pd
 from pathlib import Path
@@ -34,6 +35,20 @@ def create_plots(
 
     # use only successful evaluations
     full_success_stats_df: pd.DataFrame = full_stats_df[full_stats_df["execution"] == 1]  # type: ignore (vscode bug)
+    plots_plus.gridlineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="fitness_score_max",
+        hue="version",
+        axes="task",
+        ylim=(-10, full_success_stats_df["fitness_score_max"].max() + 10),
+        alpha=0.75,
+        errorbar=None,
+        markers=True,
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        hue_order=version_order,
+        filepath=graphics_dir / "fitness_score_max_sep.png",
+    )
     plots_plus.scatteredlineplot(
         full_success_stats_df,
         x="iteration",
@@ -274,3 +289,6 @@ if __name__ == "__main__":
         args.result_dir,
         version_order
     )
+
+    with open(args.result_dir / "command.txt", "w") as f:
+        f.write(" ".join([sys.executable, *sys.argv]))
