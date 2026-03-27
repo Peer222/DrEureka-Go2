@@ -43,7 +43,7 @@ def load_prompting(cfg):
         code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")
         code_feedback = file_to_string(prompt_dir / "code_feedback_evolved.txt")
         initial_user = file_to_string(prompt_dir / "initial_user.txt")
-        reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}_evolved.txt")
+        reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")
         policy_feedback = file_to_string(prompt_dir / "policy_feedback_evolved.txt")
         # not implemented
         # execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")
@@ -414,7 +414,7 @@ def main(cfg):
                             metric_name = "task score"
                         elif "episode_length" == metric:
                             stats["episode_length"].append(metric_cur_max)
-                        elif "total" in metric:
+                        elif metric == "rew total":
                             stats["reward_total_max"].append(metric_cur_max)
                             stats["reward_total_mean"].append(metric_cur_mean)
                             stats["reward_total_min"].append(metric_cur_min)
