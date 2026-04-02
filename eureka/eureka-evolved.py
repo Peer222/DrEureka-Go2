@@ -41,7 +41,7 @@ def load_prompting(cfg):
         prompt_dir = EUREKA_ROOT_DIR / "prompts"
         initial_system = file_to_string(prompt_dir / "initial_system.txt")
         code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")
-        code_feedback = file_to_string(prompt_dir / "code_feedback_evolved.txt")
+        code_feedback = file_to_string(prompt_dir / "code_feedback.txt")
         initial_user = file_to_string(prompt_dir / "initial_user.txt")
         reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")
         policy_feedback = file_to_string(prompt_dir / "policy_feedback_evolved.txt")
