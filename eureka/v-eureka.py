@@ -452,10 +452,11 @@ def main(cfg):
                 try:
                     evaluation_run.result()
                     log = evaluation_run.stdout()
-                    with open(rl_logpath, "w") as log_file:
-                        log_file.write(log)
                 except Exception as e:
                     logging.info(f"Job {iter}-{response_id} failed! \n{e}\n")
+                    log = f"Exception: Job {iter}-{response_id} failed! \n{e}\n"
+                with open(rl_logpath, "w") as log_file:
+                    log_file.write(log)
             else:
                 evaluation_run.communicate()
 
