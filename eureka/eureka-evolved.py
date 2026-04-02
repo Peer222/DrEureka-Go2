@@ -75,6 +75,7 @@ def construct_dialog(cfg, database_df: pd.DataFrame) -> List[Dict[str, str]]:
             topk_database = topk_database.sort_values(by="fitness_score", ascending=False).iloc[:cfg.topk_sampling]
         history_samples = topk_database.sample(cfg.num_examples, weights="fitness_score")
         history_samples: pd.DataFrame = history_samples.sort_values(by="fitness_score", ascending=True)
+        logging.info(f"Context samples [i, s]: {history_samples[['iteration', 'sample']].tolist()}")
 
         for i, (index, history_sample) in enumerate(history_samples.iterrows()):
             prefix = f"Version {i + 1}:\n\n" if cfg.num_examples > 1 else ""
@@ -246,7 +247,7 @@ def main(cfg):
             partition="tnt",
             gres="gpu:rtx_3090:1",
             job_name="run",
-            time="12:00:00",
+            time="4:00:00",
             additional_parameters={
                 "reservation": "tnt"
             }

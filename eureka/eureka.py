@@ -234,7 +234,7 @@ def main(cfg):
             partition="tnt",
             gres="gpu:rtx_3090:1",
             job_name="run",
-            time="12:00:00",
+            time="4:00:00",
             additional_parameters={
                 "reservation": "tnt"
             }
@@ -389,7 +389,6 @@ def main(cfg):
                 logged_train_iterations = np.array(run_log["iterations"]).shape[0]
                 step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
                 epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
-                logging.info(f"{logged_train_iterations=}; {step_size=}; {epoch_freq=}")
 
                 content += policy_feedback.format(epoch_freq=epoch_freq)
 
@@ -397,6 +396,7 @@ def main(cfg):
                 metrics = {}
                 reward_names = []
                 num_rewards = 0
+                fitness_score = 0
                 for metric in sorted(run_log.keys()):
                     if metric not in ["timesteps", "iterations"]:
                         metric_cur = [
@@ -405,9 +405,9 @@ def main(cfg):
                         metric_cur_max = max(run_log[metric])
                         metric_cur_mean = sum(run_log[metric]) / len(run_log[metric])
                         metric_cur_min = min(run_log[metric])
-
                         metric_name = metric
                         if "fitness_score" == metric:
+                            fitness_score = max(metric_cur_max, 0)
                             stats["fitness_score_max"].append(metric_cur_max)
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
@@ -436,6 +436,7 @@ def main(cfg):
                 stats["num_reward_functions"].append(num_rewards)
                 stats["reward_names"].append(reward_names)
                 iteration_metrics.append(metrics)
+                logging.info(f"{iter}-{response_id}: {fitness_score=}")
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)

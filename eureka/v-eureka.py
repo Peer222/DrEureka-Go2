@@ -320,7 +320,7 @@ def main(cfg):
             partition="tnt",
             gres="gpu:rtx_3090:1",
             job_name="run",
-            time="12:00:00",
+            time="4:00:00",
             additional_parameters={
                 "reservation": "tnt"
             }

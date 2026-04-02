@@ -15,7 +15,7 @@ model: cmd_line_argument  # original: gpt-4-0125-preview
 thinking_enabled: True  # for Qwen3 models with thinking
 include_thinking_in_prompt: False
 
-use_custom_params: True
+use_custom_params: False
 temperature: 0.6
 top_p: 0.95
 top_k: 20
@@ -31,6 +31,7 @@ fps: 25                    # video feedback
 max_video_length: 10       # Maximum length of video in seconds (taken from end)
 
 topk_sampling: 8
+num_examples: 2
 
 # GPU setup
 use_submitit: False        # set in submitit scripts (if set latter options are ignored)
