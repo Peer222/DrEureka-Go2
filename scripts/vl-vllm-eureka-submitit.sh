@@ -12,8 +12,8 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment>"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment> $3 <seed>"
     exit 1
 fi
 
@@ -28,7 +28,7 @@ HOST=0.0.0.0
 PORT=8000
 
 echo "Start server..."
-LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed 0 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/" &
+LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/" &
 VLLM_PID=$!
 echo "Server starting ($VLLM_PID)..."
 
@@ -57,4 +57,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python v-eureka.py model=$MODEL env=$2 use_submitit=1
+python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3

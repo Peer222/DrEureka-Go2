@@ -6,12 +6,10 @@
 #SBATCH --mem=48G
 #SBATCH --gres=gpu:rtx_3090:2
 
-#SBATCH -J eureka-evolved
-#SBATCH -o slurm_logs/large-vllm-eureka-evolved-submitit/%j.out
+#SBATCH -J large-vllm-eureka-submitit
+#SBATCH -o slurm_logs/large-vllm-eureka-submitit/%j.out
 #SBATCH --time=8-00:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
-
-# start after previous job finished: --dependency=afterany:JOB_ID
 
 
 if [ "$#" -ne 3 ]; then
@@ -27,19 +25,17 @@ DATA_ROOT="/bigwork/nhwpduep/master_thesis/models/" # "/project/NHWP25179/vllm/"
 MODEL=$1
 
 HOST=0.0.0.0
-PORT=8001
+PORT=8000
 
 echo "Start server..."
 if [ "$MODEL" = "open-ai/gpt-oss-20b" ]; then
-  LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" TIKTOKEN_ENCODINGS_BASE="$DATA_ROOT$MODEL/encodings" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --tensor-parallel-size 2 &
+  VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" TIKTOKEN_ENCODINGS_BASE="$DATA_ROOT$MODEL/encodings" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --tensor-parallel-size 2 &
 elif [ "$MODEL" = "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8" ]; then
   LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.96 --max-num-seqs 16 --max-model-len 65536 --tensor-parallel-size 2 &
-elif [ "$MODEL" = "Qwen/Qwen3-32B-AWQ" ]; then
-  LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.94 --max-num-seqs 16 --max-model-len 40960 --tensor-parallel-size 2 &
 elif [ "$MODEL" = "Qwen/Qwen3.5-27B-FP8" ]; then
   LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.9 --max-model-len 78000 --max-num-seqs 16 --tensor-parallel-size 2 --allowed-local-media-path "/bigwork/nhwpduep/master_thesis/dr-eureka-go2/" &
 else
-  LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.96 --max-num-seqs 16 --tensor-parallel-size 2 &
+  LD_PRELOAD="$CONDA_PREFIX/lib/libstdc++.so.6" VLLM_CACHE_ROOT="/bigwork/nhwpduep/.cache" vllm serve "$DATA_ROOT$MODEL" --host $HOST --port $PORT --seed $3 --gpu-memory-utilization 0.9 --max-num-seqs 16 --tensor-parallel-size 2 &
 fi
 echo "Server starting ($VLLM_PID)..."
 
@@ -68,4 +64,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python eureka-evolved.py model=$MODEL env=$2 use_submitit=1 port=$PORT seed=$3
+python eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3

@@ -8,6 +8,30 @@ import cv2
 from utils.extract_task_code import file_to_string  # type: ignore
 
 
+
+def set_seed(seed):
+    # From isaacgymenvs.utils.utils
+    import os
+    import random
+    import numpy as np
+    import torch
+
+    """ set seed across modules """
+    if seed == -1:
+        seed = np.random.randint(0, 10000)
+    else:
+        seed = seed
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    return seed
+
+
 def filter_traceback(s: str):
     lines = s.split("\n")
     filtered_lines = []

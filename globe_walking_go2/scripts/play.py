@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from globe_walking_go2.go2_gym.envs import *  # type: ignore
-from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
+from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg, set_seed
 from globe_walking_go2.go2_gym.envs.go2.go2_config import config_go2
 from globe_walking_go2.go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
 from globe_walking_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
@@ -215,7 +215,9 @@ def play_go2(
     num_rollouts: int = 1,
     device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0",
     reward_struct: Optional[str] = None,
+    seed: int = 0
 ):
+    set_seed(seed)
     print("Start play", flush=True)
     checkpoint_path = run_path / "checkpoints"
     env, policy = load_env(checkpoint_path, headless=headless, dr_config=dr_config, save_video=save_video, device=device, reward_struct=reward_struct)
@@ -364,6 +366,8 @@ if __name__ == "__main__":
         """Play in headless mode"""
         no_video: bool = False
         """If set, no video is recorded"""
+        seed: int = 0
+        """Seed"""
 
     args = tyro.cli(Args)
 
@@ -387,4 +391,5 @@ if __name__ == "__main__":
         num_rollouts=args.num_rollouts,
         headless=args.headless,
         save_video=not args.no_video,
+        seed=args.seed
     )

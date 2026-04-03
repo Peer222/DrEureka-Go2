@@ -192,6 +192,8 @@ def add_failure_values(stats):
 
 @hydra.main(config_path="cfg", config_name="config", version_base="1.1")
 def main(cfg):
+    set_seed(cfg.seed)
+    logging.info(f"Seed: {cfg.seed}")
     workspace_dir = Path.cwd()
     log_dir = Path("logs")  # dir to save run logs
     logging.info(f"Workspace: {workspace_dir}")
@@ -414,6 +416,7 @@ def main(cfg):
                     "wandb_group": f"v-eureka/{TIMESTAMP}/{iter}/{sample_idx}",
                     "headless": True,
                     "device": "cuda:0",
+                    "seed": cfg.seed,
                 }
                 job = submitit_executor.submit(train, train_cfg)  # type: ignore
                 evaluation_runs.append(job)
@@ -424,7 +427,7 @@ def main(cfg):
                 )
                 with open(rl_logpath, "w") as f:
                     # Execute the python file with flags
-                    command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu}"
+                    command = f"python -u {ROOT_DIR}/{env_name}/{cfg.env.train_script} --iterations {cfg.env.train_iterations} --headless --dr-config off --reward-config eureka --wandb-group v-eureka/{TIMESTAMP}/{iter}/{sample_idx} --device cuda:{free_eval_gpu} --seed {cfg.seed}"
                     command = command.split(" ")
                     if not cfg.use_run_wandb:
                         command.append("--no-wandb")

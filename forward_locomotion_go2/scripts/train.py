@@ -119,7 +119,7 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
     del env
     torch.cuda.empty_cache()
     # run on cpu to prevent segmentation faults?
-    play_go2(run_path=run_dir, dr_config=dr_config, save_video=True, headless=True, num_rollouts=num_eval_rollouts, device="cpu", reward_struct=reward_struct)
+    play_go2(run_path=run_dir, dr_config=dr_config, save_video=True, headless=True, num_rollouts=num_eval_rollouts, device="cpu", reward_struct=reward_struct, seed=seed)
     logger.log(f"Rollout complete! Start plotting...", flush=True)
 
     create_plots(run_dir / "outputs.log", run_dir / "graphics")

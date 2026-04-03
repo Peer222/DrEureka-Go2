@@ -8,6 +8,8 @@ hydra:
   job:
     chdir: True
 
+seed: 0
+
 # LLM parameters
 port: 8000
 model_path: /bigwork/nhwpduep/master_thesis/models/
