@@ -11,6 +11,8 @@ import seaborn as sns
 from .utils import *
 from .colors import *
 
+FIGSIZE = (7,5) # (10, 7)
+
 
 def plot(filepath: Optional[Path] = None) -> None:
     """Shows figure or saves figure if filepath is specified
@@ -50,7 +52,7 @@ def scatterplot(
 
     colorpalette = strip_palette(colorpalette, df, hue)
 
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=FIGSIZE)
     ax = sns.scatterplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
     )
@@ -96,7 +98,7 @@ def lineplot(
 
     colorpalette = strip_palette(colorpalette, df, hue)
 
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=FIGSIZE)
     ax = sns.lineplot(
         df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
     )
@@ -146,7 +148,7 @@ def scatteredlineplot(
 
     colorpalette = strip_palette(colorpalette, df, hue)
 
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=FIGSIZE)
     ax = sns.lineplot(
         df,
         x=x,
@@ -214,7 +216,7 @@ def multilineplot(
     colorpalette = strip_palette(colorpalette, df, hue)
 
     ax = None
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=FIGSIZE)
     for v in df[lines].drop_duplicates():
         filtered_df: pd.DataFrame = df[df[lines] == v]  # type: ignore
         ax = sns.lineplot(
@@ -343,4 +345,68 @@ def gridlineplot(
 
     if title:
         plt.title(title)
+    plot(filepath)
+
+
+def clusterplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: Optional[str] = None,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = ITERATION_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    hue_order: Optional[List[str]] = None,
+    style: Optional[str] = None,
+    size: Optional[str] = None,
+    alpha: float = 1.0,
+):
+    import adjustText
+    df = clean_df_labels(df)
+    x = clean_variable(x)
+    y = clean_variable(y)
+    if hue:
+        hue = clean_variable(hue)
+    if style:
+        style = clean_variable(style)
+    if size:
+        size = clean_variable(size)
+    colorpalette = strip_palette(colorpalette, df, hue)
+
+    plt.figure(figsize=FIGSIZE)
+    ax = sns.scatterplot(
+        df, x=x, y=y, hue=hue, hue_order=hue_order, palette=colorpalette, style=style, size=size, alpha=alpha
+    )
+
+    ax.set_axisbelow(True)
+    sns.despine(left=True, bottom=True, right=True, top=True)
+    ax.grid(True, color=Color.SUBTLE_GREY)
+
+    # remove uninformative ticks and labels
+    ax.tick_params(colors="white", which="both")
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    if x == "X" and y == "Y":
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+
+    if "Text" in df.columns:
+        texts = []
+        target_x = []
+        target_y = []
+        for i, row in df.iterrows():
+            color = Color.BLACK
+            if "Count" in df.columns and row["Count"] <= 2:
+                color = Color.GREY
+            texts.append(ax.text(row[x] + 0.01, row[y], str(row["Text"]), fontsize=8, color=color))
+            target_x.append(row[x])
+            target_y.append(row[y])
+        adjustText.adjust_text(
+            texts, target_x=target_x, target_y=target_y, force_pull=(0.03, 0.03)
+        )
+
+    if title:
+        plt.title(title)
+    if hue:
+        plt.legend()
     plot(filepath)
