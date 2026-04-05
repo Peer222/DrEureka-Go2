@@ -2,7 +2,7 @@ from typing import Union
 
 from params_proto import Meta
 
-from forward_locomotion.go1_gym.envs.base.legged_robot_config import Cfg
+from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
 def config_mini_cheetah(Cnfg: Union[Cfg, Meta]):

@@ -47,12 +47,12 @@ if __name__ == "__main__":
 
     import ml_logger as logger
 
-    from forward_locomotion.go1_gym_learn.ppo import Runner
-    from forward_locomotion.go1_gym.envs.wrappers.history_wrapper import HistoryWrapper
-    from forward_locomotion.go1_gym_learn.ppo.actor_critic import AC_Args
+    from forward_locomotion_go2.go2_gym_learn.ppo import Runner
+    from forward_locomotion_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
+    from forward_locomotion_go2.go2_gym_learn.ppo.actor_critic import AC_Args
 
-    from forward_locomotion.go1_gym.envs.base.legged_robot_config import Cfg
-    from forward_locomotion.go1_gym.envs.go1.go1_config import config_go1
+    from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
+    from forward_locomotion_go2.go2_gym.envs.go1.go1_config import config_go1
     config_go1(Cfg)
 
     test_env = gym.make("VelocityTrackingEasyEnv-v0", cfg=Cfg)

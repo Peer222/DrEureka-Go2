@@ -1,6 +1,6 @@
 from .sensor import Sensor
 import torch
-from globe_walking.go1_gym.utils.math_utils import quat_apply_yaw
+from globe_walking_go2.go2_gym.utils.math_utils import quat_apply_yaw
 
 class HeightmapSensor(Sensor):
     def __init__(self, env):

@@ -1,4 +1,4 @@
-from globe_walking.go1_gym.envs.base.legged_robot_config import Cfg
+from globe_walking_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
 def base_set():

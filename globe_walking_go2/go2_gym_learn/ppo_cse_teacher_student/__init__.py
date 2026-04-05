@@ -36,7 +36,7 @@ def class_to_dict(obj) -> dict:
 
 class DataCaches:
     def __init__(self, curriculum_bins):
-        from globe_walking.go1_gym_learn.ppo_cse.metrics_caches import SlotCache, DistCache
+        from globe_walking_go2.go2_gym_learn.ppo_cse.metrics_caches import SlotCache, DistCache
 
         self.slot_cache = SlotCache(curriculum_bins)
         self.dist_cache = DistCache()

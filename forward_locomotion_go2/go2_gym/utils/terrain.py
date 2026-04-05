@@ -5,7 +5,7 @@ import numpy as np
 from isaacgym import terrain_utils
 from numpy.random import choice
 
-from forward_locomotion.go1_gym.envs.base.legged_robot_config import Cfg
+from forward_locomotion_go2.go2_gym.envs.base.legged_robot_config import Cfg
 
 
 class Terrain:

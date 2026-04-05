@@ -1,4 +1,4 @@
-from globe_walking.go1_gym.assets.asset import Asset
+from globe_walking_go2.go2_gym.assets.asset import Asset
 from isaacgym.torch_utils import *
 from isaacgym import gymapi
 

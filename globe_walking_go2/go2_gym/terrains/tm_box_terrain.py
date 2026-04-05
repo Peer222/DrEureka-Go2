@@ -1,5 +1,5 @@
 from .terrain import Terrain
-from globe_walking.go1_gym.utils.terrain import perlin
+from globe_walking_go2.go2_gym.utils.terrain import perlin
 
 from isaacgym import gymapi
 import numpy as np

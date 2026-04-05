@@ -2,7 +2,7 @@ from .sensor import Sensor
 
 from isaacgym.torch_utils import *
 import torch
-from globe_walking.go1_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
+from globe_walking_go2.go2_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
 
 class PayloadSensor(Sensor):
     def __init__(self, env, attached_robot_asset=None):
