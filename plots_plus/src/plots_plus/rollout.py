@@ -1,6 +1,3 @@
-import tyro
-from dataclasses import dataclass
-
 import pandas as pd
 from pathlib import Path
 import plots_plus
@@ -13,10 +10,22 @@ def create_plots(
 
     metrics = rollout_stats_df.columns
 
+    fitness_score_df = rollout_stats_df[["time_(s)", "rollout", "rew_success"]]
+    fitness_score_df = fitness_score_df.rename({"rew_success": "fitness_score"}, axis=1)
+    plots_plus.lineplot(
+        fitness_score_df,
+        x="time_(s)",
+        y="fitness_score",
+        style="rollout",
+        colorpalette=plots_plus.colors.REWARD_COLOR_MAP,
+        filepath=graphics_dir / "fitness_score.png",
+    )
+
     rewards = {
         m: m.split("rew_")[-1] for m in metrics if "rew" in m and "success" not in m
     }
     rewards_df = rollout_stats_df[["time_(s)", "rollout", *rewards.keys()]]  # type: ignore
+    rewards_df = rewards_df.iloc[:-1]
     rewards_df = rewards_df.rename(rewards, axis=1)
     rewards_df = plots_plus.utils.rotate_df(
         rewards_df,
@@ -228,6 +237,8 @@ def __dir__():
 
 
 if __name__ == "__main__":
+    import tyro
+    from dataclasses import dataclass
 
     @dataclass
     class Args:
