@@ -16,9 +16,7 @@ from globe_walking_go2.go2_gym.envs.wrappers.history_wrapper import HistoryWrapp
 from globe_walking_go2.go2_gym import MINI_GYM_ROOT_DIR
 
 from plots_plus import rollout
-from dataclasses import dataclass
 from typing import Literal, Optional
-import tyro
 
 
 def load_policy(checkpoint_path: Path):
@@ -99,6 +97,10 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
     Cfg.domain_rand.randomize = False
 
     Cfg.env.record_video = save_video
+    if __name__ == "__main__":
+        print("Recording in HD")
+        Cfg.env.recording_width_px = 1080
+        Cfg.env.recording_height_px = 720
 
     Cfg.env.num_recording_envs = 1
     Cfg.env.num_envs = 1
@@ -110,7 +112,7 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
     Cfg.terrain.center_span = 1
     Cfg.terrain.teleport_robots = True
 
-    Cfg.control.control_type = "actuator_net"
+    # Cfg.control.control_type = "actuator_net"
 
     # The following are a series of tests to verify that DR is working as expected
     if False:
@@ -351,6 +353,8 @@ def play_go2(
 
 
 if __name__ == "__main__":
+    from dataclasses import dataclass
+    import tyro
 
     @dataclass
     class Args:
@@ -366,6 +370,8 @@ if __name__ == "__main__":
         """Play in headless mode"""
         no_video: bool = False
         """If set, no video is recorded"""
+        device: Literal["cpu", "cuda:0", "cuda:1"] = "cpu"
+        """Computation device [cpu, cuda:0]"""
         seed: int = 0
         """Seed"""
 
@@ -391,5 +397,6 @@ if __name__ == "__main__":
         num_rollouts=args.num_rollouts,
         headless=args.headless,
         save_video=not args.no_video,
-        seed=args.seed
+        device=args.device,
+        seed=args.seed,
     )

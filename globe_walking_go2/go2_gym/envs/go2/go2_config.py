@@ -28,7 +28,7 @@ def config_go2(Cnfg: Union[Cfg, Meta]):
     }
 
     _ = Cnfg.control
-    _.control_type = "actuator_net"  #'P'  # TODO go1 uses acutator net here!
+    _.control_type = "P"  #  'actuator_net'  # TODO go1 uses actuator net here!
     _.stiffness = {'joint': 20.}  # [N*m/rad]
     _.damping = {'joint': 0.5}  # [N*m*s/rad]
     # action scale: target angle = actionScale * action + defaultAngle

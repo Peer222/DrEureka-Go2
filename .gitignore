@@ -2,6 +2,7 @@ runs/
 slurm_logs/
 eureka/nhwpduep/
 plots_plus/examples
+src/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

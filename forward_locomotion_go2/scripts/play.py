@@ -56,6 +56,9 @@ def load_env(checkpoint_path: Path, headless=False, dr_config="off", save_video=
         Cfg.domain_rand = Cfg.domain_rand_off
     
     Cfg.env.record_video = save_video
+    if __name__ == "__main__":
+        Cfg.env.recording_width_px = 1080
+        Cfg.env.recording_height_px = 720
 
     Cfg.env.num_recording_envs = 1
     Cfg.env.num_envs = 1
@@ -111,6 +114,7 @@ def play_go2(
         episode_length = 0
         episode_reward = 0
         time_steps = []
+        # fitness score as rew_success in accumulated rewards
         accumulated_rewards = []
         positions = []
         linear_velocities = []
@@ -241,7 +245,7 @@ if __name__ == "__main__":
         """Play in headless mode"""
         no_video: bool = False
         """If set, no video is recorded"""
-        device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0"
+        device: Literal["cpu", "cuda:0", "cuda:1"] = "cpu"
         """Device that is used for simulation and policy"""
         seed: int = 0
         """Seed"""

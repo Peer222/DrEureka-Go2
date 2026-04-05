@@ -20,6 +20,8 @@ class Cfg(PrefixProto, cli=False):
         observe_yaw = False
         observe_command = False
         record_video = True
+        recording_width_px = 320
+        recording_height_px = 240
 
         priv_observe_friction = True
         priv_observe_restitution = True
