@@ -484,13 +484,13 @@ def main(cfg):
                 logged_train_iterations = np.array(run_log["iterations"]).shape[0]
                 step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
                 epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
-                logging.info(f"{logged_train_iterations=}; {step_size=}; {epoch_freq=}")
 
                 content += policy_feedback.format(epoch_freq=epoch_freq)
 
                 # Add reward components log to the feedback
                 metrics = {}
                 reward_names = []
+                fitness_score = 0
                 num_rewards = 0
                 for metric in sorted(run_log.keys()):
                     if metric not in ["timesteps", "iterations"]:
@@ -503,6 +503,7 @@ def main(cfg):
 
                         metric_name = metric
                         if "fitness_score" == metric:
+                            fitness_score = metric_cur_max
                             stats["fitness_score_max"].append(metric_cur_max)
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
@@ -531,6 +532,7 @@ def main(cfg):
                 stats["num_reward_functions"].append(num_rewards)
                 stats["reward_names"].append(reward_names)
                 iteration_metrics.append(metrics)
+                logging.info(f"{iter}-{response_id}: {fitness_score=}")
 
                 # rollout video feedback
                 run_dir = next((workspace_dir / str(iter)).glob(f"{response_id}*"))
