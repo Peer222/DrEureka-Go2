@@ -337,6 +337,7 @@ def gridlineplot(
         ncol=legend_cols,
         title=hue,
         frameon=False,
+        handletextpad=0.1,
     )
 
     # Remove unused subplots

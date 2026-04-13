@@ -272,8 +272,8 @@ if __name__ == "__main__":
             stats_df["task"] = "Balancing"
             metrics_df["task"] = "Balancing"
         elif "FL" in run_dir.stem:
-            stats_df["task"] = "Locomotion"
-            metrics_df["task"] = "Locomotion"
+            stats_df["task"] = "Forward Locomotion"
+            metrics_df["task"] = "Forward Locomotion"
         else:
             raise NotImplementedError(
                 f"{run_dir.stem} needs to include either FL or GW"
