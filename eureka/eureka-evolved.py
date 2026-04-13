@@ -254,8 +254,23 @@ def main(cfg):
 
     last_complete_iteration = -1
     if cfg.resume:
-        # TODO rewrite resume
-        raise NotImplementedError("Resume not implemented")
+        logging.info(f"Resume from stats file: {cfg.stats_file}")
+        full_stats = pd.read_csv(cfg.stats_file)
+        full_stats["reward_names"] = full_stats["reward_names"].apply(
+            lambda x: ast.literal_eval(x) if isinstance(x, str) else x
+        )
+        last_complete_iteration = len(full_stats) // cfg.sample - 1
+        logging.info(f"Last complete iteration: {last_complete_iteration}")
+        best_idx = full_stats[
+            full_stats["iteration"] <= last_complete_iteration  # type: ignore
+        ].idxmax(numeric_only=True)["fitness_score_max"]
+        logging.info(f"Best Index: {best_idx}")
+        maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
+        maximum_iteration = full_stats.iloc[best_idx]["iteration"]
+        maximum_sample = full_stats.iloc[best_idx]["sample"]
+
+        database_df = pd.read_csv(Path(cfg.stats_file).parent / "database.csv", index_col=0, quoting=csv.QUOTE_ALL, escapechar='\\')
+        database_df: pd.DataFrame = database_df[database_df["iteration"] <= last_complete_iteration]  # type: ignore
 
     if cfg.use_submitit:
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
