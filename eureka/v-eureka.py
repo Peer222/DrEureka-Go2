@@ -379,7 +379,6 @@ def main(cfg):
             "video_critique_thinking_tokens": [],
             "video_critique_answer_tokens": [],
             "video_critique_total_tokens": [],
-            "ancestors": [],
             "execution": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],
@@ -403,7 +402,7 @@ def main(cfg):
         for sample_idx, sample in enumerate(samples):
             logging.info(f"Iteration {iter}: Processing Code Run {sample_idx}")
 
-            code_string = parse_generated_reward_functions(sample["message"]["answer"])  # type: ignore
+            code_string = parse_generated_reward_functions(sample["message"]["answer"])
             # Add the Eureka Reward Signature to the environment code
             cur_task_rew_code_string = task_rew_code_string.replace(
                 "# INSERT EUREKA REWARD HERE", code_string
@@ -620,14 +619,12 @@ def main(cfg):
         )
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
 
-        message_type = "answer"
-        if cfg.thinking_enabled and cfg.include_thinking_in_prompt:
-            message_type = "content"
+        reward_code = parse_generated_reward_functions(samples[best_sample_idx]["message"]["answer"])
         if len(messages) == 2:
             messages += [
                 {
                     "role": "assistant",
-                    "content": samples[best_sample_idx]["message"][message_type],
+                    "content": reward_code,
                 }
             ]
             messages += [{"role": "user", "content": best_content}]
@@ -635,7 +632,7 @@ def main(cfg):
             assert len(messages) == 4
             messages[-2] = {
                 "role": "assistant",
-                "content": samples[best_sample_idx]["message"][message_type],
+                "content": reward_code,
             }
             messages[-1] = {"role": "user", "content": best_content}
 

@@ -114,7 +114,7 @@ def get_function_signature(code_string):
     return signature, input_lst
 
 
-def parse_generated_reward_functions(response_cur):
+def parse_generated_reward_functions(response_cur: str) -> str:
     # Regex patterns to extract python code enclosed in LLM response
     patterns = [
         r"```python(.*?)```",

@@ -288,7 +288,6 @@ def main(cfg):
             "thinking_tokens": [],
             "answer_tokens": [],
             "total_tokens": [],
-            "ancestors": [],
             "execution": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],

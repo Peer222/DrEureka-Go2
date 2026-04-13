@@ -15,7 +15,7 @@ port: 8000
 model_path: /bigwork/nhwpduep/master_thesis/models/
 model: cmd_line_argument  # original: gpt-4-0125-preview
 thinking_enabled: True  # for Qwen3 models with thinking
-include_thinking_in_prompt: False
+include_thinking_in_prompt: False # not working for vision and evolved versions (only reward code included)
 
 use_custom_params: False
 temperature: 0.6
