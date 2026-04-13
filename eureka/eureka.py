@@ -477,7 +477,7 @@ def main(cfg):
         stats["sample"] = stats.index
         stats["version"] = f"{cfg.model}_{TIMESTAMP}"
         stats["seed"] = cfg.seed
-        stats["ancestors"] = ancestors
+        stats["ancestors"] = [ancestors] * len(stats)
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
         # Select the best code sample based on the success rate
