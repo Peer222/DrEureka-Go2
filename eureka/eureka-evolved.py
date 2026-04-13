@@ -102,6 +102,19 @@ def generate_samples(iteration: int, cfg, database_df: pd.DataFrame, stats):
     all_messages = []
     num_prev_prompts = len(stats["prompt_tokens"])
 
+    custom_params = {}
+    if cfg.use_custom_params:
+        custom_params = {
+            "temperature": cfg.temperature,
+            "top_p": cfg.top_p,
+            "presence_penalty": cfg.presence_penalty,
+            "extra_body": {
+                "top_k": cfg.top_k,
+                "repetition_penalty": cfg.repetition_penalty,
+                "chat_template_kwargs": {"enable_thinking": cfg.thinking_enabled},
+            },
+        }
+
     for s in range(cfg.sample):
         messages = construct_dialog(cfg, database_df)
         all_messages.append(messages)
@@ -113,6 +126,7 @@ def generate_samples(iteration: int, cfg, database_df: pd.DataFrame, stats):
                     model=f"{cfg.model_path}{cfg.model}",
                     messages=messages,
                     n=1,
+                    **custom_params,
                 )
                 break
             except Exception as e:
