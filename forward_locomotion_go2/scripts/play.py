@@ -108,7 +108,7 @@ def play_go2(
             import imageio
             video_dir_path = checkpoint_path / "../videos"
             video_dir_path.mkdir(exist_ok=True)
-            mp4_writer = imageio.get_writer(video_dir_path / f"final-{rollout_index}.mp4", fps=50)
+            mp4_writer = imageio.get_writer(video_dir_path / f"final-{rollout_index}.mp4", fps=int(1 / env.dt))
         obs = env.reset()
 
         episode_length = 0
