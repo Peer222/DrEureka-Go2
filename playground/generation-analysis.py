@@ -17,6 +17,7 @@ from plots_plus.colors import LLM_COLOR_MAP
 
 @dataclass
 class Args:
+    # TODO include 2 runs for comparison in single space instead of two separate executions
     statspath: Path
     """Path to stats.csv file from eureka run"""
     embedding_model: str = "Qwen/Qwen3-Embedding-4B"
@@ -114,7 +115,7 @@ def get_mds(
 
 
 def compute_mds_from_text(
-    args: Args, texts: List[str], text_type: str, method: Literal["PCA", "t-SNE"]
+    args: Args, texts: List[str], text_type: str, method: Literal["PCA", "t-SNE", "spectral"]
 ) -> pd.DataFrame:
     embedding_path = (
         args.statspath.parent
@@ -128,7 +129,7 @@ def compute_mds_from_text(
     else:
         model = load_model(args.models_dir / args.embedding_model)
         embeddings = model.encode(
-            texts, prompt=args.prompt, show_progress_bar=True, batch_size=20
+            texts, prompt=args.prompt, show_progress_bar=True, batch_size=5
         )
         (args.statspath.parent / "embeddings").mkdir(exist_ok=True)
         np.save(embedding_path, embeddings)
@@ -138,7 +139,7 @@ def compute_mds_from_text(
         mds_df = mds_df.rename({"text": "code"}, axis=1)
     return mds_df
 
-
+# TODO backtrack rewards from best incumbent and plot trajectory?
 if __name__ == "__main__":
     import tyro
 
