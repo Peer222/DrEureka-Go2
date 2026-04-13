@@ -38,8 +38,15 @@ def delete_wandb_runs(base_dir: Path):
         shutil.rmtree(wandb_dir)
 
 
+def delete_submitit(base_dir: Path):
+    submitit_dir = base_dir / "submitit"
+    if submitit_dir.exists():
+        shutil.rmtree(submitit_dir)
+
+
 if __name__ == "__main__":
     args = tyro.cli(Args)
     delete_logs(args.eureka_run_dir)
     delete_wandb_runs(args.eureka_run_dir)
     delete_checkpoints(args.eureka_run_dir, args.ckpt_fitness_threshold)
+    delete_submitit(args.eureka_run_dir)
