@@ -2,4 +2,4 @@ The following video shows a rollout of a quadruped robot trying to locomote forw
     (1) Describe the movements of the robot sequentially and in detail. Especially look into the leg and foot positions and dynamics.  
     (2) Describe the gait of the quadruped robot.
     (3) Summarize your findings.  
-Mark each section with the index: <**index**>
+    (4) Give a score between 0 and 1000. Consider locomotion speed, naturalness, robustness, and safety. Include your final score as follows: ```score {score}```

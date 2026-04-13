@@ -183,9 +183,11 @@ def generate_samples(cfg, messages, stats):
 
 def add_failure_values(stats):
     stats["execution"].append(0)
+    stats["fitness_score_last"].append(0)
     stats["fitness_score_max"].append(0)
     stats["fitness_score_mean"].append(0)
     stats["fitness_score_min"].append(0)
+    stats["critic_score"].append(0)
     stats["episode_length"].append(0)
     # stats["prompt_tokens"].append(DUMMY_FAILURE) # correct values added already before evaluation failure
     # stats["completion_tokens"].append(DUMMY_FAILURE)
@@ -294,15 +296,15 @@ def main(cfg):
         logging.info(f"Last complete iteration: {last_complete_iteration}")
         best_idx = full_stats[
             full_stats["iteration"] <= last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)["fitness_score_max"]
+        ].idxmax(numeric_only=True)[cfg.optimization_target]
         logging.info(f"Best Index: {best_idx}")
-        maximum_fitness_score = full_stats.iloc[best_idx]["fitness_score_max"]
+        maximum_fitness_score = full_stats.iloc[best_idx][cfg.optimization_target]
         maximum_iteration = full_stats.iloc[best_idx]["iteration"]
         maximum_sample = full_stats.iloc[best_idx]["sample"]
 
         best_current_idx = full_stats[
             full_stats["iteration"] == last_complete_iteration  # type: ignore
-        ].idxmax(numeric_only=True)["fitness_score_max"]
+        ].idxmax(numeric_only=True)[cfg.optimization_target]
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         ancestors = ([last_complete_iteration, best_current_sample])
@@ -380,6 +382,8 @@ def main(cfg):
             "video_critique_answer_tokens": [],
             "video_critique_total_tokens": [],
             "execution": [],
+            "critic_score": [],
+            "fitness_score_last": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],
             "fitness_score_min": [],
@@ -520,6 +524,7 @@ def main(cfg):
                         metric_name = metric
                         if "fitness_score" == metric:
                             fitness_score = metric_cur_max
+                            stats["fitness_score_last"].append(metric_cur[-1])
                             stats["fitness_score_max"].append(metric_cur_max)
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
@@ -575,8 +580,11 @@ def main(cfg):
                     cfg, critique_messages, stats
                 )
                 content += video_feedback.replace(
-                    "{critique_feedback}", video_response["message"]["answer"]
+                    "{critique}", video_response["message"]["answer"]
                 )
+                critic_score = parse_critic_score(video_response)
+                stats["critic_score"].append(critic_score)
+                logging.info(f"{iter}-{response_id}: {critic_score=}")
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)
@@ -601,11 +609,11 @@ def main(cfg):
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
         # Select the best code sample based on the success rate
-        best_sample_idx = np.argmax(stats["fitness_score_max"])
+        best_sample_idx = np.argmax(stats[cfg.optimization_target])
         best_content = contents[best_sample_idx]
         ancestors = ([iter, best_sample_idx])
 
-        best_fitness_score = np.max(stats["fitness_score_max"])
+        best_fitness_score = np.max(stats[cfg.optimization_target])
         execution_rate = np.sum(stats["execution"]) / cfg.sample
 
         # Update the best Eureka Output
@@ -615,7 +623,10 @@ def main(cfg):
             maximum_iteration = iter
 
         logging.info(
-            f"Iteration {iter}: Max Fitness Score: {best_fitness_score:.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {maximum_fitness_score:.2f}"
+            f"Iteration {iter}: Max {cfg.optimization_target}: {best_fitness_score:.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {maximum_fitness_score:.2f}"
+        )
+        logging.info(
+            f"Iteration {iter}: Max Task Score: {stats['fitness_score_max'].max():.2f}, Execution Rate: {execution_rate:.2f}, Max All Time: {full_stats['fitness_score_max'].max():.2f}"
         )
         logging.info(f"Iteration {iter}: Best Generation ID: {best_sample_idx}")
 

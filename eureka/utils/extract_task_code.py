@@ -1,6 +1,6 @@
 import re
 import ast
-
+import logging
 
 def file_to_string(filename):
     with open(filename, "r", errors="ignore") as file:
@@ -143,3 +143,19 @@ def parse_generated_reward_functions(response_cur: str) -> str:
             break
 
     return code_string
+
+
+def parse_critic_score(response_cur: str) -> float:
+    # Regex patterns to extract python code enclosed in LLM response
+    pattern = r"```score(.*?)```"
+    score_string = None
+
+    found = re.finditer(pattern, response_cur, re.DOTALL)
+    for match in found:
+        score_string = match.group(1).strip()
+
+    if not score_string:
+        logging.warning(f"No critic score found! \n\n{response_cur}\n\n")
+        return 0
+
+    return float(score_string)

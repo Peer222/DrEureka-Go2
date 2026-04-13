@@ -3,4 +3,4 @@ The following video shows a rollout of a quadruped robot balancing on a ball. Th
     (2) Pick movements that are particularly beneficial for maintaining balance on the ball. Describe foot/leg positions with respect to the robots body and the ball and the dynamics of the movement.
     (3) Pick movements that are particularly detrimental for maintaining balance on the ball. Describe foot/leg positions with respect to the robots body and the ball and the dynamics of the movement.
     (4) Summarize your findings.  
-Mark each section with the index: <**index**>
+    (5) Give a score between 0 and 2000. Consider naturalness, robustness, safety, balancing duration, and ball movements. Include your final score as follows: ```score {score}```
