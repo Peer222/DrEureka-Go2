@@ -41,7 +41,7 @@ def load_prompting(cfg):
         prompt_dir = EUREKA_ROOT_DIR / "prompts"
         initial_system = file_to_string(prompt_dir / "initial_system.txt")
         code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")
-        code_feedback = file_to_string(prompt_dir / "code_feedback.txt")
+        code_feedback = file_to_string(prompt_dir / "code_feedback_evolved.txt")
         initial_user = file_to_string(prompt_dir / "initial_user.txt")
         reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")
         policy_feedback = file_to_string(prompt_dir / "policy_feedback_evolved.txt")
@@ -84,7 +84,7 @@ def construct_dialog(cfg, database_df: pd.DataFrame) -> Tuple[List[Dict[str, str
             messages += [
                     {
                         "role": "assistant",
-                        "content": prefix + history_sample["generation"],
+                        "content": prefix + history_sample["reward_function"],
                     }
                 ]
             epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
@@ -236,7 +236,7 @@ def main(cfg):
     full_stats = pd.DataFrame()
     full_metrics = []
 
-    database_df = pd.DataFrame(columns=["iteration", "sample", "fitness_score", "generation", "training_summarization", "reward_code_path"])
+    database_df = pd.DataFrame(columns=["iteration", "sample", "fitness_score", "generation", "reward_function", "training_summarization", "reward_code_path"])
 
     logger.log_params(Cfg=vars(cfg))
     if cfg.use_wandb:
@@ -480,6 +480,7 @@ def main(cfg):
                     response_id,
                     fitness_score,
                     samples[response_id]["message"]["answer"],
+                    parse_generated_reward_functions(samples[response_id]["message"]["answer"]),
                     training_summarization,
                     reward_dir / f"iteration-{iter}_sample-{response_id}.py"
                 ]

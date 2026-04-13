@@ -123,12 +123,16 @@ def parse_generated_reward_functions(response_cur):
         r'""(.*?)""',
         r'"(.*?)"',
     ]
+    code_string = None
     for pattern in patterns:
-        code_string = re.search(pattern, response_cur, re.DOTALL)
-        if code_string is not None:
-            code_string = code_string.group(1).strip()
+        found = re.finditer(pattern, response_cur, re.DOTALL)
+        for match in found:
+            code_string = match.group(1).strip()
+        if code_string:
             break
-    code_string = response_cur if not code_string else code_string  # type: ignore
+
+    if not code_string:
+        code_string = response_cur
 
     # Remove unnecessary imports
     lines = code_string.split("\n")
