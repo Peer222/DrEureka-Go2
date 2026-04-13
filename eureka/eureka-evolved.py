@@ -4,7 +4,7 @@ import sys
 import csv
 import traceback
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import json
 import pandas as pd
 import re
@@ -50,7 +50,7 @@ def load_prompting(cfg):
     return Prompts
 
 
-def construct_dialog(cfg, database_df: pd.DataFrame) -> List[Dict[str, str]]:
+def construct_dialog(cfg, database_df: pd.DataFrame) -> Tuple[List[Dict[str, str]], Tuple[List[int], ...]]:
     prompts = load_prompting(cfg)
 
     no_think_flag = ""
@@ -69,13 +69,15 @@ def construct_dialog(cfg, database_df: pd.DataFrame) -> List[Dict[str, str]]:
         {"role": "system", "content": initial_system},
         {"role": "user", "content": initial_user},
     ]
+    ancestors = ()
     if len(database_df):
         topk_database = database_df
         if cfg.topk_sampling:
             topk_database = topk_database.sort_values(by="fitness_score", ascending=False).iloc[:cfg.topk_sampling]
         history_samples = topk_database.sample(cfg.num_examples, weights="fitness_score")
         history_samples: pd.DataFrame = history_samples.sort_values(by="fitness_score", ascending=True)
-        logging.info(f"Context samples [i, s]: {history_samples[['iteration', 'sample']].tolist()}")
+        ancestors = tuple(history_samples[['iteration', 'sample']].values.tolist())
+        logging.info(f"Context samples [i, s]: {ancestors}")
 
         for i, (index, history_sample) in enumerate(history_samples.iterrows()):
             prefix = f"Version {i + 1}:\n\n" if cfg.num_examples > 1 else ""
@@ -90,7 +92,7 @@ def construct_dialog(cfg, database_df: pd.DataFrame) -> List[Dict[str, str]]:
             messages += [{"role": "user", "content": feedback}]
         instructions = prompts.code_feedback + prompts.code_output_tip
         messages += [{"role": "user", "content": instructions}]
-    return messages
+    return messages, ancestors
 
 
 def generate_samples(iteration: int, cfg, database_df: pd.DataFrame, stats):
@@ -116,7 +118,7 @@ def generate_samples(iteration: int, cfg, database_df: pd.DataFrame, stats):
         }
 
     for s in range(cfg.sample):
-        messages = construct_dialog(cfg, database_df)
+        messages, ancestors = construct_dialog(cfg, database_df)
         all_messages.append(messages)
         start_time = time.time()
         response = None
@@ -140,6 +142,7 @@ def generate_samples(iteration: int, cfg, database_df: pd.DataFrame, stats):
         stats["prompt_tokens"].append(response["usage"]["prompt_tokens"])  # type: ignore
         stats["completion_tokens"].append(response["usage"]["completion_tokens"])  # type: ignore
         stats["total_tokens"].append(response["usage"]["total_tokens"])  # type: ignore
+        stats["ancestors"].append(ancestors)
         logging.info(f"Generation {s} took {(time.time() - start_time):.1f} seconds")
 
     # split thinking and non thinking content
@@ -299,6 +302,7 @@ def main(cfg):
             "thinking_tokens": [],
             "answer_tokens": [],
             "total_tokens": [],
+            "ancestors": [],
             "execution": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],

@@ -229,6 +229,7 @@ def main(cfg):
 
     full_stats = pd.DataFrame()
     full_metrics = []
+    ancestors = []
 
     logger.log_params(Cfg=vars(cfg))
     if cfg.use_wandb:
@@ -304,6 +305,7 @@ def main(cfg):
         ].idxmax(numeric_only=True)["fitness_score_max"]
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
+        ancestors = ([last_complete_iteration, best_current_sample])
         if last_complete_iteration > 0:
             with open(
                 Path(cfg.stats_file).parent
@@ -377,6 +379,7 @@ def main(cfg):
             "video_critique_thinking_tokens": [],
             "video_critique_answer_tokens": [],
             "video_critique_total_tokens": [],
+            "ancestors": [],
             "execution": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],
@@ -595,11 +598,13 @@ def main(cfg):
         stats["sample"] = stats.index
         stats["version"] = f"{cfg.model}_{TIMESTAMP}"
         stats["seed"] = cfg.seed
+        stats["ancestors"] = ancestors
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
         # Select the best code sample based on the success rate
         best_sample_idx = np.argmax(stats["fitness_score_max"])
         best_content = contents[best_sample_idx]
+        ancestors = ([iter, best_sample_idx])
 
         best_fitness_score = np.max(stats["fitness_score_max"])
         execution_rate = np.sum(stats["execution"]) / cfg.sample
