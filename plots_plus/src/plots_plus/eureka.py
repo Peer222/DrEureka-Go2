@@ -31,6 +31,22 @@ def create_plots(
 
     # use only successful evaluations
     full_success_stats_df: pd.DataFrame = full_stats_df[full_stats_df["execution"] == 1]  # type: ignore (vscode bug)
+    if "critic_score" in full_success_stats_df.columns:
+        plots_plus.scatteredlineplot(
+            full_success_stats_df,
+            x="iteration",
+            y="critic_score",
+            hue="version",
+            filepath=graphics_dir / "critic_score.png",
+        )
+    if "fitness_score_last" in full_success_stats_df.columns:
+        plots_plus.scatteredlineplot(
+            full_success_stats_df,
+            x="iteration",
+            y="fitness_score_last",
+            hue="version",
+            filepath=graphics_dir / "fitness_score_last.png",
+        )
     plots_plus.scatteredlineplot(
         full_success_stats_df,
         x="iteration",
