@@ -134,7 +134,6 @@ def prepare_video_message(frame_dir: Path, fps: int) -> List[Dict[str, str]]:
         video_message.append(
             {"type": "image_url", "image_url": {"url": f"file://{str(frame.absolute())}"}}
         )
-    logging.info(f"Number of frames: {i+1}")
     return video_message
 
 
@@ -155,7 +154,6 @@ def extract_frames(video_path: Path, frame_dir: Path, fps: int, max_video_length
     duration = frame_count / original_fps
     max_frames = (max_video_length / duration) * frame_count
     step = original_fps // fps
-    logging.info(f"Final Video: {original_fps=}, {fps=}, {step=}")
     i = 0
     while video.isOpened():
         ret, frame = video.read()

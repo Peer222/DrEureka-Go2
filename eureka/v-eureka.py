@@ -37,7 +37,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
     custom_params = {}
     if cfg.use_custom_params:
         custom_params = {
-            "temperature": cfg.temperature,
+            "temperature": cfg.temperature,  # produce single fixed review with t=0?
             "top_p": cfg.top_p,
             "presence_penalty": cfg.presence_penalty,
             "extra_body": {
@@ -219,6 +219,7 @@ def main(cfg):
     (workspace_dir / "rewards").mkdir()
     (workspace_dir / "logs").mkdir()
     (workspace_dir / "chats").mkdir()
+    (workspace_dir / "video_critiques").mkdir()
     (workspace_dir / "graphics").mkdir()
 
     logging.info(f"Using LLM: {cfg.model_path}{cfg.model}")
@@ -524,7 +525,7 @@ def main(cfg):
                         metric_name = metric
                         if "fitness_score" == metric:
                             fitness_score = metric_cur_max
-                            stats["fitness_score_last"].append(metric_cur[-1])
+                            stats["fitness_score_last"].append(run_log[metric][-1])
                             stats["fitness_score_max"].append(metric_cur_max)
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
@@ -582,9 +583,13 @@ def main(cfg):
                 content += video_feedback.replace(
                     "{critique}", video_response["message"]["answer"]
                 )
-                critic_score = parse_critic_score(video_response)
+                critic_score = parse_critic_score(video_response["message"]["answer"])
                 stats["critic_score"].append(critic_score)
                 logging.info(f"{iter}-{response_id}: {critic_score=}")
+                with open(Path("video_critiques") / f"iteration-{iter}_sample-{response_id}.md", "w") as f:
+                    f.write(str(critique_messages))
+                    f.write("\n\n\n")
+                    f.write(video_response["message"]["answer"])
             else:
                 # Otherwise, provide execution traceback error feedback
                 add_failure_values(stats)

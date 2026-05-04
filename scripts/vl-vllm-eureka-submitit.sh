@@ -57,4 +57,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3
+python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3 use_custom_params=1
