@@ -44,7 +44,7 @@ def generate_samples(cfg, messages, stats):
             "extra_body": {
                 "top_k": cfg.top_k,
                 "repetition_penalty": cfg.repetition_penalty,
-                "chat_template_kwargs": {"enable_thinking": cfg.thinking_enabled},
+                # "chat_template_kwargs": {"enable_thinking": cfg.thinking_enabled},
             },
         }
 
@@ -79,7 +79,7 @@ def generate_samples(cfg, messages, stats):
         thinking_content = re.search(r"(<think>)?(.*?)</think>", text, flags=re.DOTALL)
         response["message"]["thinking"] = (
             thinking_content.group(2).strip()
-            if thinking_content and len(thinking_content.group(2))
+            if thinking_content and len(thinking_content.group(2).strip())
             else "None"
         )
         response["message"]["answer"] = text.split("</think>")[-1].strip()
@@ -106,6 +106,7 @@ def generate_samples(cfg, messages, stats):
 
 def add_failure_values(stats):
     stats["execution"].append(0)
+    stats["fitness_score_last"].append(0)
     stats["fitness_score_max"].append(0)
     stats["fitness_score_mean"].append(0)
     stats["fitness_score_min"].append(0)
@@ -289,6 +290,7 @@ def main(cfg):
             "answer_tokens": [],
             "total_tokens": [],
             "execution": [],
+            "fitness_score_last": [],
             "fitness_score_max": [],
             "fitness_score_mean": [],
             "fitness_score_min": [],
@@ -428,6 +430,7 @@ def main(cfg):
                         metric_name = metric
                         if "fitness_score" == metric:
                             fitness_score = max(metric_cur_max, 0)
+                            stats["fitness_score_last"].append(run_log[metric][-1])
                             stats["fitness_score_max"].append(metric_cur_max)
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
