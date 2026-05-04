@@ -3,3 +3,5 @@ The following video shows a rollout of a quadruped robot trying to locomote forw
     (2) Describe the gait of the quadruped robot.
     (3) Summarize your findings.  
     (4) Give a score between 0 and 1000. Consider locomotion speed, naturalness, robustness, and safety. Include your final score as follows: ```score {score}```
+
+Note: If the robot falls, the video will end immediately. The maximum video length is 10 seconds.
