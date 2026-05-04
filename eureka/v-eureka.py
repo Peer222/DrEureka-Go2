@@ -311,7 +311,7 @@ def main(cfg):
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         ancestors = ([last_complete_iteration, best_current_sample])
-        if last_complete_iteration > 0:
+        if last_complete_iteration >= 0:
             with open(
                 Path(cfg.stats_file).parent
                 / "chats"
@@ -319,20 +319,29 @@ def main(cfg):
                 "r",
             ) as f:
                 text = f.read()
-                chat_messages = re.search(
-                    r"## assistant:\n(.*?)\n\n## user:\n(.*?) ---------- \n## assistant:",
-                    text,
-                    flags=re.DOTALL,
-                )
-                if chat_messages:
-                    llm_reward_generation = chat_messages.group(1).strip()
-                    logging.info(f"{llm_reward_generation=}")
-                    reward_reflection = chat_messages.group(2).strip()
-                    logging.info(f"{reward_reflection=}")
-                    messages.append(
-                        {"role": "assistant", "content": llm_reward_generation}
+            chat_messages = re.search(
+                r"## assistant:\n(.*?)\n\n## user:\n(.*?) ---------- \n## assistant:",
+                text,
+                flags=re.DOTALL,
+            )
+            if chat_messages:
+                llm_reward_generation = chat_messages.group(1).strip()
+                logging.info(f"{llm_reward_generation=}")
+                reward_reflection = chat_messages.group(2).strip()
+                logging.info(f"{reward_reflection=}")
+                with open(Path("video_critiques") / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.md", "r") as vf:
+                    video_reflection = video_feedback.replace(
+                        "{critique}", vf.read()
                     )
-                    messages.append({"role": "user", "content": reward_reflection})
+                logging.info(f"{video_reflection=}")
+                messages.append(
+                    {"role": "assistant", "content": llm_reward_generation}
+                )
+                messages.append({"role": "user", "content": reward_reflection + video_reflection})
+        # load metrics for completeness and plot generation
+        if (Path(cfg.stats_file).parent / "metrics.json").exists():
+            with open(Path(cfg.stats_file).parent / "metrics.json", "r") as f:
+                full_metrics = json.load(f)
 
     if cfg.use_submitit:
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
@@ -588,9 +597,9 @@ def main(cfg):
                 critic_score = parse_critic_score(video_response["message"]["answer"])
                 stats["critic_score"].append(critic_score)
                 logging.info(f"{iter}-{response_id}: {critic_score=}")
-                with open(Path("video_critiques") / f"iteration-{iter}_sample-{response_id}.md", "w") as f:
+                with open(Path("video_critiques") / f"iteration-{iter}_sample-{response_id}.json", "w") as f:
                     f.write(str(critique_messages))
-                    f.write("\n\n\n")
+                with open(Path("video_critiques") / f"iteration-{iter}_sample-{response_id}.md", "w") as f:
                     f.write(video_response["message"]["answer"])
             else:
                 # Otherwise, provide execution traceback error feedback
@@ -662,10 +671,6 @@ def main(cfg):
         run.log({"Stats": table})  # type: ignore
     with open("metrics.json", "w") as f:
         json.dump(full_metrics, f)
-
-    if cfg.resume:
-        logging.info("Resumed training finished!")
-        return
 
     ###
     if maximum_fitness_score < 0:

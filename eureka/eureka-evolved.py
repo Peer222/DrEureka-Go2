@@ -273,6 +273,11 @@ def main(cfg):
         database_df = pd.read_csv(Path(cfg.stats_file).parent / "database.csv", index_col=0, quoting=csv.QUOTE_ALL, escapechar='\\')
         database_df: pd.DataFrame = database_df[database_df["iteration"] <= last_complete_iteration]  # type: ignore
 
+        # load metrics for completeness and plot generation
+        if (Path(cfg.stats_file).parent / "metrics.json").exists():
+            with open(Path(cfg.stats_file).parent / "metrics.json", "r") as f:
+                full_metrics = json.load(f)
+
     if cfg.use_submitit:
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
         submitit_executor.update_parameters(
@@ -533,10 +538,6 @@ def main(cfg):
         run.log({"Stats": table})  # type: ignore
     with open("metrics.json", "w") as f:
         json.dump(full_metrics, f)
-
-    if cfg.resume:
-        logging.info("Resumed training finished!")
-        return
 
     ###
     if maximum_fitness_score < 0:

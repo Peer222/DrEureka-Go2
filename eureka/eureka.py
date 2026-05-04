@@ -222,7 +222,7 @@ def main(cfg):
         logging.info(f"Best Index of last iteration: {best_current_idx}")
         best_current_sample = full_stats.iloc[best_current_idx]["sample"]
         ancestors = ([last_complete_iteration, best_current_sample])
-        if last_complete_iteration > 0:
+        if last_complete_iteration >= 0:
             with open(
                 Path(cfg.stats_file).parent
                 / "chats"
@@ -244,6 +244,10 @@ def main(cfg):
                         {"role": "assistant", "content": llm_reward_generation}
                     )
                     messages.append({"role": "user", "content": reward_reflection})
+        # load metrics for completeness and plot generation
+        if (Path(cfg.stats_file).parent / "metrics.json").exists():
+            with open(Path(cfg.stats_file).parent / "metrics.json", "r") as f:
+                full_metrics = json.load(f)
 
     if cfg.use_submitit:
         submitit_executor = submitit.SlurmExecutor(folder="submitit")
@@ -530,10 +534,6 @@ def main(cfg):
         run.log({"Stats": table})  # type: ignore
     with open("metrics.json", "w") as f:
         json.dump(full_metrics, f)
-
-    if cfg.resume:
-        logging.info("Resumed training finished!")
-        return
 
     ###
     if maximum_fitness_score < 0:
