@@ -57,6 +57,7 @@ def generate_samples(cfg, messages, stats):
                     model=f"{cfg.model_path}{cfg.model}",
                     messages=messages,
                     n=1,
+                    max_tokens=cfg.max_completion_tokens,
                     **custom_params,
                 )
                 break

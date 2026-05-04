@@ -55,6 +55,7 @@ def analyze_rollout_video(cfg, messages: List[Dict[str, str]], stats):
                 model=f"{cfg.model_path}{cfg.model}",
                 messages=messages,
                 n=1,
+                max_tokens=cfg.max_completion_tokens,
                 **custom_params,
             )
             break
@@ -134,6 +135,7 @@ def generate_samples(cfg, messages, stats):
                     model=f"{cfg.model_path}{cfg.model}",
                     messages=messages,
                     n=1,
+                    max_tokens=cfg.max_completion_tokens,
                     **custom_params,
                 )
                 break
