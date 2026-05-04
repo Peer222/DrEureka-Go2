@@ -39,7 +39,6 @@ def clean_variable(var_name: str) -> str:
 
 def to_execution_rates(df: pd.DataFrame) -> pd.DataFrame:
     """Converts binary execution success criterion into percentage (per iteration)
-    (only applicable to single version df / versions need to be added afterwards)
     Args:
         df (pd.DataFrame): DataFrame with iteration and execution column
 
@@ -48,9 +47,11 @@ def to_execution_rates(df: pd.DataFrame) -> pd.DataFrame:
     """
     grouping_vars = ["iteration"]
     if "version" in df.columns:
-        grouping_vars.append("version")
+        grouping_vars += ["version"]
     if "task" in df.columns:
-        grouping_vars.append("task")
+        grouping_vars += ["task"]
+    if "seed" in df.columns:
+        grouping_vars += ["seed"]
     execution_rates = df.groupby(grouping_vars, as_index=False)["execution"].mean()
     return pd.DataFrame(execution_rates).rename({"execution": "execution_rate"}, axis=1)
 

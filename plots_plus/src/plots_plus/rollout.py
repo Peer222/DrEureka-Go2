@@ -25,7 +25,6 @@ def create_plots(
         m: m.split("rew_")[-1] for m in metrics if "rew" in m and "success" not in m
     }
     rewards_df = rollout_stats_df[["time_(s)", "rollout", *rewards.keys()]]  # type: ignore
-    rewards_df = rewards_df.iloc[:-1]
     rewards_df = rewards_df.rename(rewards, axis=1)
     rewards_df = plots_plus.utils.rotate_df(
         rewards_df,

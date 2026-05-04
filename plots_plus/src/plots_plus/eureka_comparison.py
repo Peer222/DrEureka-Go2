@@ -21,15 +21,16 @@ def create_plots(
     )
 
     execution_rate_df = plots_plus.utils.to_execution_rates(full_stats_df)
-    plots_plus.lineplot(
+    plots_plus.gridlineplot(
         execution_rate_df,
         x="iteration",
         y="execution_rate",
         hue="version",
-        style="task",
+        axes="task",
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
         ylim=(-0.1, 1.1),
+        alpha=0.75,
         filepath=graphics_dir / "execution_rates.png",
     )
 
@@ -47,41 +48,43 @@ def create_plots(
         markers=True,
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
-        filepath=graphics_dir / "fitness_score_max_sep.png",
+        filepath=graphics_dir / "fitness_score_max.png",
     )
-    plots_plus.scatteredlineplot(
+    plots_plus.gridlineplot(
         full_success_stats_df,
         x="iteration",
         y="fitness_score_max",
         hue="version",
-        style="task",
-        ylim=(-10, None),
+        axes="task",
+        ylim=(-10, full_success_stats_df["fitness_score_max"].max() + 10),
         alpha=0.75,
-        errorbar=None,
+        markers="max",
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
-        filepath=graphics_dir / "fitness_score_max.png",
+        filepath=graphics_dir / "fitness_score_max_ci.png",
     )
-    plots_plus.scatteredlineplot(
+
+    plots_plus.gridlineplot(
         full_success_stats_df,
         x="iteration",
         y="reward_total_max",
         hue="version",
-        style="task",
+        axes="task",
         alpha=0.75,
-        errorbar=None,
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
         filepath=graphics_dir / "reward_total_max.png",
     )
 
-    plots_plus.scatteredlineplot(
+    plots_plus.gridlineplot(
         full_success_stats_df,
         x="iteration",
         y="num_reward_functions",
         hue="version",
-        style="task",
+        axes="task",
         ylim=(0, None),
         alpha=0.75,
-        errorbar=None,
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
         filepath=graphics_dir / "num_reward_functions.png",
     )
@@ -99,12 +102,12 @@ def create_plots(
         obj["version"].append(version)
         obj["task"].append(task)
     num_rew_per_iter_df = pd.DataFrame(obj)
-    plots_plus.lineplot(
+    plots_plus.gridlineplot(
         num_rew_per_iter_df,
         x="iteration",
         y="reward_names",
         hue="version",
-        style="task",
+        axes="task",
         colorpalette=plots_plus.colors.LLM_COLOR_MAP,
         hue_order=version_order,
         ylim=(0, None),
@@ -282,6 +285,7 @@ if __name__ == "__main__":
         all_stats_df = pd.concat([all_stats_df, stats_df])
         all_metrics_df = pd.concat([all_metrics_df, metrics_df])
 
+    all_stats_df.reset_index(inplace=True)
     version_order = list(dict.fromkeys(version_order))
     create_plots(
         all_stats_df,

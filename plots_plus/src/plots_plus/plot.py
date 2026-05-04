@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, Literal
 from collections import OrderedDict
 from pathlib import Path
 
@@ -266,7 +266,7 @@ def gridlineplot(
     title: Optional[str] = None,
     xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
-    markers: Optional[bool] = None,
+    markers: Optional[Union[bool, Literal["max"]]] = None,
     hue_order: Optional[List[str]] = None,
     alpha: float = 1.0,
     errorbar: Optional[Tuple[str, float]] = ("ci", 95),
@@ -308,7 +308,15 @@ def gridlineplot(
         ax.set_xlim(*get_limits(df, x, xlim))
         ax.set_ylim(*get_limits(df, y, ylim))
 
-        if markers:
+        if markers == "max":
+            by = [x, hue]
+            if "Seed" in group.columns:
+                by += ["Seed"]
+            max_group: pd.DataFrame = group.loc[group.groupby(by)[y].idxmax()]  # type: ignore
+            sns.scatterplot(
+                max_group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha
+            )
+        elif markers:
             sns.scatterplot(
                 group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha
             )

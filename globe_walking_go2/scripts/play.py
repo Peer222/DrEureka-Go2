@@ -217,7 +217,8 @@ def play_go2(
     num_rollouts: int = 1,
     device: Literal["cpu", "cuda:0", "cuda:1"] = "cuda:0",
     reward_struct: Optional[str] = None,
-    seed: int = 0
+    seed: int = 0,
+    file_prefix: str = "",
 ):
     set_seed(seed)
     print("Start play", flush=True)
@@ -231,7 +232,7 @@ def play_go2(
             import imageio
             video_dir_path = checkpoint_path / "../videos"
             video_dir_path.mkdir(exist_ok=True)
-            mp4_writer = imageio.get_writer(video_dir_path / f"final-{rollout_index}.mp4", fps=int(1 / env.dt))
+            mp4_writer = imageio.get_writer(video_dir_path / f"{file_prefix}final-{rollout_index}.mp4", fps=int(1 / env.dt))
         obs = env.reset()
 
         episode_length = 0
@@ -252,6 +253,8 @@ def play_go2(
         robot_idx = env.robot_actor_idxs.item()
         done = torch.tensor(0)
         while True:
+            if done.any():  # type: ignore
+                break
             if save_video:
                 img = env.render(mode="rgb_array")
                 mp4_writer.append_data(img)  # type: ignore
@@ -284,8 +287,6 @@ def play_go2(
                 .item()
             )
 
-            if done.any():  # type: ignore
-                break
             obs, rew, done, info = env.step(actions)
             episode_reward += rew
             episode_length += 1
@@ -347,7 +348,7 @@ def play_go2(
     if save_video:
         all_stats_df.to_csv(checkpoint_path / ".." / "rollout_stats.csv")
         rollout.create_plots(
-            all_stats_df, checkpoint_path / ".." / "graphics" / "rollouts", env="globe_walking_go2"
+            all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="globe_walking_go2"
         )
 
 
@@ -373,6 +374,8 @@ if __name__ == "__main__":
         """Computation device [cpu, cuda:0]"""
         seed: int = 0
         """Seed"""
+        file_prefix: str = ""
+        """Prefix that is added to video and graphics file/dir names"""
 
     args = tyro.cli(Args)
 
@@ -398,4 +401,5 @@ if __name__ == "__main__":
         save_video=not args.no_video,
         device=args.device,
         seed=args.seed,
+        file_prefix=args.file_prefix,
     )
