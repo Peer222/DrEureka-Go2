@@ -292,10 +292,11 @@ def gridlineplot(
 
     if not hue_order:
         names: List[str] = list(df[hue].drop_duplicates().sort_values())
-        cmap = mpl.colors.LinearSegmentedColormap.from_list(
-            "multiline", colorpalette, N=len(names)
-        )
-        colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
+        if len(names) > 1:
+            cmap = mpl.colors.LinearSegmentedColormap.from_list(
+                "multiline", colorpalette, N=len(names)
+            )
+            colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
         hue_order = names
 
     for ax, (name, group) in zip(axs, groups):
