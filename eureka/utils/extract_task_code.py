@@ -147,7 +147,7 @@ def parse_generated_reward_functions(response_cur: str) -> str:
 
 def parse_critic_score(response_cur: str) -> float:
     # Regex patterns to extract python code enclosed in LLM response
-    pattern = r"```score(.*?)```"
+    pattern = r"```score.*?(\d+\.?\d*).*?```"
     score_string = None
 
     found = re.finditer(pattern, response_cur, re.DOTALL)
