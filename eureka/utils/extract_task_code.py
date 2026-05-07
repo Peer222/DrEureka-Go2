@@ -155,7 +155,7 @@ def parse_critic_score(response_cur: str) -> float:
         score_string = match.group(1).strip()
 
     if not score_string:
-        logging.warning(f"No critic score found! \n\n{response_cur}\n\n")
+        logging.warning(f"No critic score found!")
         return 0
     try:
         return float(score_string)

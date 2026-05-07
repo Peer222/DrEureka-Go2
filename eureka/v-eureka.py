@@ -290,8 +290,11 @@ def main(cfg):
 
     last_complete_iteration = -1
     if cfg.resume:
+        resumed_base_dir = Path(cfg.stats_file).parent
         logging.info(f"Resume from stats file: {cfg.stats_file}")
         full_stats = pd.read_csv(cfg.stats_file)
+        if "Unnamed: 0" in full_stats.columns:
+            full_stats.drop("Unnamed: 0", axis=1, inplace=True)
         full_stats["reward_names"] = full_stats["reward_names"].apply(
             lambda x: ast.literal_eval(x) if isinstance(x, str) else x
         )
@@ -313,34 +316,42 @@ def main(cfg):
         ancestors = ([last_complete_iteration, best_current_sample])
         if last_complete_iteration >= 0:
             with open(
-                Path(cfg.stats_file).parent
+                resumed_base_dir
                 / "chats"
                 / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.md",
                 "r",
             ) as f:
                 text = f.read()
-            chat_messages = re.search(
-                r"## assistant:\n(.*?)\n\n## user:\n(.*?) ---------- \n## assistant:",
-                text,
-                flags=re.DOTALL,
-            )
-            if chat_messages:
-                llm_reward_generation = chat_messages.group(1).strip()
+            chat_message = re.search(r"\n\n\*\*\*Final Answer:\*\*\*\n\n(.*)", text, flags=re.DOTALL)
+            if chat_message:
+                llm_reward_generation = chat_message.group(1).strip()
                 logging.info(f"{llm_reward_generation=}")
-                reward_reflection = chat_messages.group(2).strip()
-                logging.info(f"{reward_reflection=}")
-                with open(Path("video_critiques") / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.md", "r") as vf:
+                messages.append(
+                    {"role": "assistant", "content": llm_reward_generation}
+                )
+                with open(resumed_base_dir / "logs" / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.log", "r") as f:
+                    run_log = construct_run_log(f.read())  # type: ignore
+                if run_log is None:
+                    raise ValueError(f"Could not parse run log on resume!")
+
+                logged_train_iterations = np.array(run_log["iterations"]).shape[0]
+                step_size = max(logged_train_iterations // cfg.feedback_series_size, 1)
+                epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
+
+                reward_reflection = policy_feedback.format(epoch_freq=epoch_freq)
+                reward_reflection += construct_numeric_feedback(run_log, step_size)
+                reward_reflection += code_feedback
+                with open(resumed_base_dir / "video_critiques" / f"iteration-{last_complete_iteration}_sample-{best_current_sample}.md", "r") as vf:
                     video_reflection = video_feedback.replace(
                         "{critique}", vf.read()
                     )
                 logging.info(f"{video_reflection=}")
-                messages.append(
-                    {"role": "assistant", "content": llm_reward_generation}
-                )
-                messages.append({"role": "user", "content": reward_reflection + video_reflection})
+                messages.append({"role": "user", "content": reward_reflection + video_reflection + code_output_tip})
+            else:
+                raise ValueError("Failed to parse chat message for resume")
         # load metrics for completeness and plot generation
-        if (Path(cfg.stats_file).parent / "metrics.json").exists():
-            with open(Path(cfg.stats_file).parent / "metrics.json", "r") as f:
+        if (resumed_base_dir / "metrics.json").exists():
+            with open(resumed_base_dir / "metrics.json", "r") as f:
                 full_metrics = json.load(f)
 
     if cfg.use_submitit:
@@ -518,22 +529,20 @@ def main(cfg):
                 epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size
 
                 content += policy_feedback.format(epoch_freq=epoch_freq)
+                content += construct_numeric_feedback(run_log, step_size)
+                content += code_feedback
 
-                # Add reward components log to the feedback
+                # Store run data
                 metrics = {}
                 reward_names = []
                 fitness_score = 0
                 num_rewards = 0
                 for metric in sorted(run_log.keys()):
                     if metric not in ["timesteps", "iterations"]:
-                        metric_cur = [
-                            "{:.2f}".format(x) for x in run_log[metric][::step_size]
-                        ]
                         metric_cur_max = max(run_log[metric])
                         metric_cur_mean = sum(run_log[metric]) / len(run_log[metric])
                         metric_cur_min = min(run_log[metric])
 
-                        metric_name = metric
                         if "fitness_score" == metric:
                             fitness_score = metric_cur_max
                             stats["fitness_score_last"].append(run_log[metric][-1])
@@ -541,7 +550,6 @@ def main(cfg):
                             stats["fitness_score_mean"].append(metric_cur_mean)
                             stats["fitness_score_min"].append(metric_cur_min)
                             metrics["fitness_score"] = run_log[metric]
-                            metric_name = "task score"
                         elif "episode_length" == metric:
                             stats["episode_length"].append(metric_cur_max)
                         elif "total" in metric:
@@ -555,13 +563,8 @@ def main(cfg):
                             reward_names.append(rew_name)
                             metrics[rew_name] = run_log[metric]
                         elif "loss" in metric:
-                            # losses should not be included in llm feedback
                             metrics[metric] = run_log[metric]
-                            continue
 
-                        content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f}  \n"
-
-                content += code_feedback
                 stats["num_reward_functions"].append(num_rewards)
                 stats["reward_names"].append(reward_names)
                 iteration_metrics.append(metrics)

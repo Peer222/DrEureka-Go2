@@ -4,9 +4,9 @@ import logging
 import time
 from pathlib import Path
 import cv2
+import numpy as np
 
 from utils.extract_task_code import file_to_string  # type: ignore
-
 
 
 def set_seed(seed):
@@ -123,6 +123,28 @@ def construct_run_log(stdout_str):
         return None
 
     return run_log
+
+
+def construct_numeric_feedback(run_log, step_size):
+    # Add reward components log to the feedback
+    content = ""
+    for metric in sorted(run_log.keys()):
+        if metric not in ["timesteps", "iterations"]:
+            metric_cur = [
+                "{:.2f}".format(x) for x in run_log[metric][::step_size]
+            ]
+            metric_cur_max = max(run_log[metric])
+            metric_cur_mean = sum(run_log[metric]) / len(run_log[metric])
+            metric_cur_min = min(run_log[metric])
+
+            metric_name = metric
+            if "fitness_score" == metric:
+                metric_name = "task score"
+            elif "loss" in metric:
+                continue
+
+            content += f"{metric_name}: {metric_cur}, Max: {metric_cur_max:.2f}, Mean: {metric_cur_mean:.2f}, Min: {metric_cur_min:.2f}  \n"
+    return content
 
 
 def prepare_video_message(frame_dir: Path, fps: int) -> List[Dict[str, str]]:
