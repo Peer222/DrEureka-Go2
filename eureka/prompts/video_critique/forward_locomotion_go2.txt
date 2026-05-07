@@ -1,7 +1,7 @@
 The following video shows a rollout of a quadruped robot trying to locomote forwards (straight). The robot's policy shall be deployed safely in the real world. Therefore, the robot should have a stable position and controlled movements. Analyze the recording as follows:  
     (1) Describe the movements of the robot sequentially and in detail. Especially look into the leg and foot positions and dynamics.  
-    (2) Describe the gait of the quadruped robot.
+    (2) Describe the gait of the quadruped robot. In particular, investigate the rhythm, symmetry, and robustness.
     (3) Summarize your findings.  
-    (4) Give a score between 0 and 1000. Consider locomotion speed, naturalness, robustness, and safety. Include your final score as follows: ```score {score}```
+    (4) Give a score between 0 and 1000. Consider locomotion speed, safety, robustness, and naturalness. Include your final score as follows: ```score {score}```
 
-Note: If the robot falls, the video will end immediately. The maximum video length is 10 seconds.
+Important: If the robot’s main body touches the ground at any point, the video will end immediately, indicating a failed task. The maximum video length is 10 seconds. If the video ends before 10 seconds, the robot failed to complete the task and did not perform a stable gait.
