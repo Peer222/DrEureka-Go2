@@ -89,11 +89,24 @@ def create_plots(
         filepath=graphics_dir / "num_reward_functions.png",
     )
 
-    num_rew_per_iter_groups = full_success_stats_df.groupby(
-        ["iteration", "version", "task"]
+    plots_plus.lineplot(
+        full_success_stats_df,
+        x="iteration",
+        y="num_reward_functions",
+        hue="version",
+        style="task",
+        ylim=(0, None),
+        alpha=0.75,
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        hue_order=version_order,
+        filepath=graphics_dir / "num_reward_functions_sp.png",
     )
-    obj = {"iteration": [], "reward_names": [], "version": [], "task": []}
-    for (iteration, version, task), group in num_rew_per_iter_groups:
+
+    num_rew_per_iter_groups = full_success_stats_df.groupby(
+        ["iteration", "version", "task", "seed"]
+    )
+    obj = {"iteration": [], "reward_names": [], "version": [], "task": [], "seed": []}
+    for (iteration, version, task, seed), group in num_rew_per_iter_groups:
         names = []
         for i, row in group.iterrows():
             names.extend(row["reward_names"])
@@ -101,6 +114,7 @@ def create_plots(
         obj["iteration"].append(iteration)
         obj["version"].append(version)
         obj["task"].append(task)
+        obj["seed"].append(seed)
     num_rew_per_iter_df = pd.DataFrame(obj)
     plots_plus.gridlineplot(
         num_rew_per_iter_df,
@@ -113,6 +127,19 @@ def create_plots(
         ylim=(0, None),
         alpha=0.75,
         filepath=graphics_dir / "reward_names.png",
+    )
+    
+    plots_plus.lineplot(
+        num_rew_per_iter_df,
+        x="iteration",
+        y="reward_names",
+        hue="version",
+        style="task",
+        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+        hue_order=version_order,
+        ylim=(0, None),
+        alpha=0.75,
+        filepath=graphics_dir / "reward_names_sp.png",
     )
 
     plots_plus.lineplot(
@@ -272,8 +299,8 @@ if __name__ == "__main__":
         stats_df["version"] = match.group(1)
         metrics_df["version"] = match.group(1)
         if "GW" in run_dir.stem:
-            stats_df["task"] = "Balancing"
-            metrics_df["task"] = "Balancing"
+            stats_df["task"] = "Ball Balancing"
+            metrics_df["task"] = "Ball Balancing"
         elif "FL" in run_dir.stem:
             stats_df["task"] = "Forward Locomotion"
             metrics_df["task"] = "Forward Locomotion"

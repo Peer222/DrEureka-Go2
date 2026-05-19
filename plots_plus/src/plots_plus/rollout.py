@@ -187,6 +187,8 @@ def create_plots(
     positions_df.loc[:, "x"] -= positions_df["x"].iloc[0]
     positions_df.loc[:, "y"] -= positions_df["y"].iloc[0]
     positions_df.loc[:, "z"] -= positions_df["z"].iloc[0]
+    # reduce plotted positions to 10 per second
+    positions_df: pd.DataFrame = positions_df[((positions_df["time_(s)"] * 25) % 10) == 0]  # type: ignore
     if "forward_locomotion" in env:
         x_max = positions_df["x"].abs().max()
         y_max = positions_df["y"].abs().max()
@@ -245,11 +247,14 @@ if __name__ == "__main__":
         """Path to rollout statistics file"""
         result_dir: Path
         """directory in which graphics are stored"""
+        max_rollout_duration: float = 40
+        """maximal length of the rollout in seconds that is plotted"""
 
     args = tyro.cli(Args)
     args.result_dir.mkdir(parents=True, exist_ok=True)
 
     rollout_stats_df = pd.read_csv(args.statspath)
+    rollout_stats_df: pd.DataFrame = rollout_stats_df[rollout_stats_df["time_(s)"] <= args.max_rollout_duration]  # type: ignore
 
     create_plots(
         rollout_stats_df,
