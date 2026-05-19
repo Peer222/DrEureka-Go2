@@ -224,7 +224,7 @@ def play_go2(
             all_stats_df = pd.concat([all_stats_df, stats_df])
 
     if save_video:
-        all_stats_df.to_csv(checkpoint_path / ".." / "rollout_stats.csv")
+        all_stats_df.to_csv(checkpoint_path / ".." / f"{file_prefix}rollout_stats.csv")
         rollout.create_plots(
             all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="forward_locomotion_go2"
         )
