@@ -6,16 +6,18 @@
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:rtx_3090:2
 
-#SBATCH -J vl-vllm-eureka-submitit
-#SBATCH -o slurm_logs/vl-vllm-eureka-submitit/%j.out
+#SBATCH -J vl-vllm-eureka-submitit-resume
+#SBATCH -o slurm_logs/vl-vllm-eureka-submitit-resume/%j.out
 #SBATCH --time=8-00:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment> $3 <seed>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $1 <llm-type> [open-ai/gpt-oss-20b, Qwen/Qwen3-32B-AWQ, Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment> $3 <seed> $4 </path/to/stats.csv>"
     exit 1
 fi
+
+if [[ $4 == /* ]]; then echo "absolute path provided"; else echo "absolute path to stats.csv required"; exit 1; fi
 
 module load Miniconda3
 conda activate vllm
@@ -57,4 +59,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3 use_custom_params=1
+python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3 use_custom_params=1 resume=True stats_file=$4
