@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import ast
 import re
+import sys
 from dataclasses import dataclass
 
 from sentence_transformers import SentenceTransformer
@@ -18,8 +19,8 @@ from plots_plus.colors import LLM_COLOR_MAP
 @dataclass
 class Args:
     # TODO include 2 runs for comparison in single space instead of two separate executions
-    statspath: Path
-    """Path to stats.csv file from eureka run"""
+    runs: List[Path]
+    """Path to stats.csv files from eureka runs (multiple seeds)"""
     embedding_model: str = "Qwen/Qwen3-Embedding-4B"
     """Name of the huggingface embedding model name"""
     models_dir: Path = Path("/bigwork/nhwpduep/master_thesis/models/")
@@ -27,6 +28,9 @@ class Args:
     prompt: Optional[str] = None
     """Not adjustable! Prompt that is prepended for embedding generation"""
     seed: int = 0
+    """Seed for MDS"""
+    resultdir: Optional[Path] = None
+    """Result directory. Has to be specified if multiple runs are given"""
 
 
 def load_model(model_name: Union[str, Path]) -> SentenceTransformer:
@@ -117,9 +121,9 @@ def get_mds(
 def compute_mds_from_text(
     args: Args, texts: List[str], text_type: str, method: Literal["PCA", "t-SNE", "spectral"]
 ) -> pd.DataFrame:
+    resultdir = args.resultdir if args.resultdir else args.runs[0]
     embedding_path = (
-        args.statspath.parent
-        / "embeddings"
+        resultdir / "embeddings"
         / f"{text_type}_{args.embedding_model.split('/')[-1]}.npy"
     )
     if (embedding_path).exists():
@@ -131,7 +135,7 @@ def compute_mds_from_text(
         embeddings = model.encode(
             texts, prompt=args.prompt, show_progress_bar=True, batch_size=5
         )
-        (args.statspath.parent / "embeddings").mkdir(exist_ok=True)
+        (resultdir / "embeddings").mkdir(exist_ok=True)
         np.save(embedding_path, embeddings)
 
         mds_df = get_mds(texts, embeddings, method)
@@ -144,24 +148,37 @@ if __name__ == "__main__":
     import tyro
 
     args = tyro.cli(Args)
+    assert len(args.runs) > 1 and args.resultdir or len(args.runs) == 1, "If multiple runs are shown, a result dir must be specified"
     np.random.seed(args.seed)
-    stats_df = pd.read_csv(args.statspath)
 
-    version_order = []
-    match = re.search(".*/([^_]+)_.*", stats_df["version"].iloc[0])
-    if match is None:
-        raise Exception(f"Unknown model version found: {stats_df['version'].iloc[0]}")
-    version_order.append(match.group(1))
-    stats_df["version"] = match.group(1)
+    stats_df = pd.DataFrame()
+    rewards_df = pd.DataFrame()
+    for run_dir in args.runs:
+      _stats_df = pd.read_csv(run_dir / "stats.csv")
 
-    ### rewards
-    rewards_df = get_rewards(args.statspath.parent / "rewards")
+      version_order = []
+      match = re.search(".*/([^_]+)_.*", _stats_df["version"].iloc[0])
+      if match is None:
+          raise Exception(f"Unknown model version found: {_stats_df['version'].iloc[0]}")
+      version_order.append(match.group(1))
+      _stats_df["version"] = match.group(1)
+      stats_df = pd.concat([stats_df, _stats_df])
+
+      ### rewards
+      rewards_df = pd.concat([rewards_df, get_rewards(run_dir / "rewards")])
+
+    stats_df.reset_index(inplace=True)
+    rewards_df.reset_index(inplace=True)
+
+    resultdir = args.resultdir if args.resultdir else args.runs[0]
+    resultdir.mkdir(exist_ok=True)
     args.prompt = ""  # "Instruct: Given a reward definition, retrieve relevant passages that answer the query\nQuery:"
     # PCA
     pca_df = compute_mds_from_text(
         args, rewards_df["content"].tolist(), "rewards", method="PCA"
     )
     pca_df["version"] = stats_df["version"].iloc[0]
+    pca_df["seed"] = stats_df["seed"]
     pca_df["iteration"] = rewards_df["iteration"]
     pca_df["sample"] = rewards_df["sample"]
     pca_df["fitness_score"] = stats_df["fitness_score_max"]
@@ -171,8 +188,9 @@ if __name__ == "__main__":
         "2. Component",
         "iteration",
         size="fitness_score",
+        style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "rewards_pca.png",
@@ -183,6 +201,7 @@ if __name__ == "__main__":
         args, rewards_df["content"].tolist(), "rewards", method="t-SNE"
     )
     tsne_df["version"] = stats_df["version"].iloc[0]
+    tsne_df["seed"] = stats_df["seed"]
     tsne_df["iteration"] = rewards_df["iteration"]
     tsne_df["sample"] = rewards_df["sample"]
     tsne_df["fitness_score"] = stats_df["fitness_score_max"]
@@ -193,8 +212,9 @@ if __name__ == "__main__":
         "y",
         "iteration",
         size="fitness_score",
+        style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "rewards_t-sne.png",
@@ -205,6 +225,7 @@ if __name__ == "__main__":
         args, rewards_df["content"].tolist(), "rewards", method="spectral"
     )
     spectral_df["version"] = stats_df["version"].iloc[0]
+    spectral_df["seed"] = stats_df["seed"]
     spectral_df["iteration"] = rewards_df["iteration"]
     spectral_df["sample"] = rewards_df["sample"]
     spectral_df["fitness_score"] = stats_df["fitness_score_max"]
@@ -215,8 +236,9 @@ if __name__ == "__main__":
         "y",
         "iteration",
         size="fitness_score",
+        style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "rewards_spectral.png",
@@ -231,6 +253,7 @@ if __name__ == "__main__":
     pca_df = compute_mds_from_text(args, all_names, "reward_names", "PCA")
 
     pca_df["version"] = stats_df["version"].iloc[0]
+    pca_df["seed"] = stats_df["seed"]
     pca_df["group"] = "all"
     pca_df["count"] = counts
     for best_name in best_names:
@@ -246,7 +269,7 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "reward_names_pca.png",
@@ -256,6 +279,7 @@ if __name__ == "__main__":
     tsne_df = compute_mds_from_text(args, all_names, "reward_names", "t-SNE")
 
     tsne_df["version"] = stats_df["version"].iloc[0]
+    tsne_df["seed"] = stats_df["seed"]
     tsne_df["group"] = "all"
     tsne_df["count"] = counts
     for best_name in best_names:
@@ -271,7 +295,7 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "reward_names_t-sne.png",
@@ -281,6 +305,7 @@ if __name__ == "__main__":
     spectral_df = compute_mds_from_text(args, all_names, "reward_names", "spectral")
 
     spectral_df["version"] = stats_df["version"].iloc[0]
+    spectral_df["seed"] = stats_df["seed"]
     spectral_df["group"] = "all"
     spectral_df["count"] = counts
     for best_name in best_names:
@@ -296,8 +321,12 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=args.statspath.parent
+        filepath=resultdir
         / "graphics"
         / "gen_analysis"
         / "reward_names_spectral.png",
     )
+
+    if args.resultdir:
+        with open(args.resultdir / "command.txt", "w") as f:
+            f.write(" ".join([sys.executable, *sys.argv]))
