@@ -151,7 +151,7 @@ def prepare_video_message(frame_dir: Path, fps: int) -> List[Dict[str, str]]:
     frames = frame_dir.glob("*.jpg")
     video_message = []
     i = -1
-    for i, frame in enumerate(frames):
+    for i, frame in enumerate(sorted(frames)):
         video_message.append({"type": "text", "text": f"<{i/fps:.2f} seconds>"})
         video_message.append(
             {"type": "image_url", "image_url": {"url": f"file://{str(frame.absolute())}"}}
