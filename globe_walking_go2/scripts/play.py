@@ -347,9 +347,12 @@ def play_go2(
 
     if save_video:
         all_stats_df.to_csv(checkpoint_path / ".." / f"{file_prefix}rollout_stats.csv")
-        rollout.create_plots(
-            all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="globe_walking_go2"
-        )
+        try:
+            rollout.create_plots(
+                all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="globe_walking_go2"
+            )
+        except Exception as e:
+            print(f"A bug occured during plotting: {e}")
 
 
 if __name__ == "__main__":

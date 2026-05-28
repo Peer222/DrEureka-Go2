@@ -115,7 +115,7 @@ def play_go2(
         episode_length = 0
         episode_reward = 0
         time_steps = []
-        # fitness score as rew_success in accumulated rewards
+        # fitness_score in accumulated rewards
         accumulated_rewards = []
         positions = []
         linear_velocities = []
@@ -225,9 +225,12 @@ def play_go2(
 
     if save_video:
         all_stats_df.to_csv(checkpoint_path / ".." / f"{file_prefix}rollout_stats.csv")
-        rollout.create_plots(
-            all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="forward_locomotion_go2"
-        )
+        try:
+            rollout.create_plots(
+                all_stats_df, checkpoint_path / ".." / "graphics" / f"{file_prefix}rollouts", env="forward_locomotion_go2"
+            )
+        except Exception as e:
+            print(f"A bug occured during plotting: {e}")
 
 
 if __name__ == "__main__":
