@@ -1,0 +1,5 @@
+The ball radius of the original ball is TODO cm.
+
+The maximum task score that could be theoretically reached is 2000.
+Define a ball radius for the {curriculum_stage} curriculum stage. Include your new ball radius as follows:  
+```target {ball radius}```

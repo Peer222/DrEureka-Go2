@@ -1,0 +1,5 @@
+You are a reward engineer trying to write reward functions to solve reinforcement learning tasks as effective as possible.
+Your goal is to write a reward curriculum for the environment that will help the agent to learn the task described in text.
+Therefore, the training is split into 5 stages.
+The task is as follows:  
+{task_description}

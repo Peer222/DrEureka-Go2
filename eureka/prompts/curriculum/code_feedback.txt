@@ -1,0 +1,15 @@
+Please carefully analyze the policy feedback of the curriculum and provide a new, improved reward function for the next curriculum stage.
+Follow this plan:  
+First, analyze each stage of the reward curriculum and its feedback separately. Consider especially the following concepts:  
+    (1) Does the computation of each existing reward component make sense?  
+    (2) Are the scales of each existing reward component reasonable?  
+    (3) Can the policy optimize each existing reward component?  
+    (4) Is the policy able to optimize the respective curriculum score?  
+
+Second, summarize your findings and suggest needed changes to improve the reward function code. Then, formulate a new reward. Here are some ideas in which way you can improve the reward formulation:  
+    (1) Think about selecting or discarding reward components.  
+    (2) Consider rescaling or temperature parameter adjustments of reward components.  
+    (3) Think about re-writing a reward component.  
+    (4) Ponder on introducing new reward components to tackle identified challenges.  
+
+Third, write your final reward function code. Keep in mind the required code structure.  

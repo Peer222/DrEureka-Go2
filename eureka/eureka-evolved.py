@@ -38,13 +38,13 @@ def load_prompting(cfg):
         task_obs_file = EUREKA_ROOT_DIR / "envs" / f"{env_name}.py"
         task_obs_code_string = file_to_string(task_obs_file)
         # Loading all text prompts
-        prompt_dir = EUREKA_ROOT_DIR / "prompts"
+        prompt_dir = EUREKA_ROOT_DIR / "prompts" / cfg.prompt_collection
         initial_system = file_to_string(prompt_dir / "initial_system.txt")
         code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")
-        code_feedback = file_to_string(prompt_dir / "code_feedback_evolved.txt")
+        code_feedback = file_to_string(prompt_dir / "code_feedback.txt")
         initial_user = file_to_string(prompt_dir / "initial_user.txt")
-        reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")
-        policy_feedback = file_to_string(prompt_dir / "policy_feedback_evolved.txt")
+        reward_signature = file_to_string(prompt_dir / ".." / "reward_signatures" / f"{env_name}.txt")
+        policy_feedback = file_to_string(prompt_dir / "policy_feedback.txt")
         # not implemented
         # execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")
     return Prompts

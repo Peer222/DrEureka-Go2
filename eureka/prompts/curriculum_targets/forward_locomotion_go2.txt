@@ -1,0 +1,13 @@
+The task/curriculum score is computed as follows (averaged over all environments; summed over an episode):  
+```python
+def compute_task_score(self):
+        target_velocity = ... # in m/s
+        lin_vel_error = torch.square(target_velocity - self.env.root_states[:, 7])
+        return torch.exp(-lin_vel_error / 0.25)
+```  
+The maximum task/curriculum score that could be reached theoretically is 1000. In practice, scores above 700 are reasonable.  
+
+{target_feedback}  
+
+Define a target velocity for the {curriculum_stage}. curriculum stage. Consider that the reward functions are also updated, so expect improved policies for your target formulation. Include your new target velocity as follows:  
+```target {{target velocity}}```

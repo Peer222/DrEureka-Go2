@@ -1,8 +1,9 @@
-As an example, the reward function signature can be: 
-
+The reward function signature is:  
+```python
 def compute_reward(self):
     env = self.env  # Do not skip this line. Afterwards, use env.{parameter_name} to access parameters of the environment.  
     ...  
-    return reward, {}  
+    return reward, {}
+```  
 
 where env is the environment object with relevant variables like env.root_states. You must strictly follow this template.

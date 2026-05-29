@@ -177,12 +177,13 @@ def main(cfg):
         no_think_flag = " /no_think"
 
     # Loading all text prompts
-    prompt_dir = EUREKA_ROOT_DIR / "prompts"
+    #TODO adapt prompt loading structure
+    prompt_dir = EUREKA_ROOT_DIR / "prompts" / cfg.prompt_collection
     initial_system = file_to_string(prompt_dir / "initial_system.txt")  # type: ignore
     code_output_tip = file_to_string(prompt_dir / "code_output_tip.txt")  # type: ignore
     code_feedback = file_to_string(prompt_dir / "code_feedback.txt")  # type: ignore
     initial_user = file_to_string(prompt_dir / "initial_user.txt")  # type: ignore
-    reward_signature = file_to_string(prompt_dir / "reward_signatures" / f"{env_name}.txt")  # type: ignore
+    reward_signature = file_to_string(prompt_dir / ".." / "reward_signatures" / f"{env_name}.txt")  # type: ignore
     policy_feedback = file_to_string(prompt_dir / "policy_feedback.txt")  # type: ignore
     execution_error_feedback = file_to_string(prompt_dir / "execution_error_feedback.txt")  # type: ignore
 

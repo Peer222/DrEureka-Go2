@@ -36,7 +36,8 @@ max_video_length: 10       # Maximum length of video in seconds (taken from end)
 topk_sampling: 8
 num_examples: 2
 
-optimization_target: "critic_score"  # for v-eureka: critic_score, fitness_score_max or fitness_score_last (TODO)
+optimization_target: "fitness_score_last"  # for v-eureka: critic_score, fitness_score_max or fitness_score_last
+prompt_collection: "default" # default, minimal, evolved, curriculum
 
 # GPU setup
 use_submitit: False        # set in submitit scripts (if set latter options are ignored)

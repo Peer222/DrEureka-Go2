@@ -1,0 +1,6 @@
+The task score is computed as follows (averaged over all environments):  
+```python
+def compute_task_score(self):
+    return torch.ones_like(self.env.base_pos[:, 2])
+```
+with the ball radius of ... # INSERT TARGET HERE cm (curriculum target)
