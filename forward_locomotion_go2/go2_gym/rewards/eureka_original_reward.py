@@ -72,9 +72,8 @@ class EurekaOriginalReward():
             reward_components["tracking_ang_vel"] = _reward_tracking_ang_vel(env)
                              
         return total_reward, reward_components
-    
-    # Success criteria as forward velocity
-    def compute_success(self):
+
+    def compute_fitness_score(self):
         target_velocity = 2.0
         lin_vel_error = torch.square(target_velocity - self.env.root_states[:, 7])
         return torch.exp(-lin_vel_error / 0.25)

@@ -627,7 +627,7 @@ def main(cfg):
         stats["ancestors"] = [ancestors] * len(stats)
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
-        # Select the best code sample based on the success rate
+        # Select the best code sample based on the fitness_score
         best_sample_idx = np.argmax(stats[cfg.optimization_target])
         best_content = contents[best_sample_idx]
         ancestors = ([iter, best_sample_idx])

@@ -340,7 +340,9 @@ class LeggedRobot(BaseTask):
             for name, rew_term in rew_components.items():
                 self.episode_sums[name] += rew_term
                 self.command_sums[name] += rew_term
-            self.episode_sums["success"] += self.reward_container.compute_success()
+            self.episode_sums["fitness_score"] += self.reward_container.compute_fitness_score()
+            if getattr(self.reward_container, "compute_curriculum_score", None):
+                self.episode_sums["curriculum_score"] += self.reward_container.compute_curriculum_score()
 
         self.episode_sums["total"] += self.rew_buf
 
@@ -1184,14 +1186,17 @@ class LeggedRobot(BaseTask):
             for name in self.reward_names}
         self.episode_sums["total"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                  requires_grad=False)
-        self.episode_sums["success"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
+        if getattr(self.reward_container, "compute_curriculum_score", None):
+            self.episode_sums["curriculum_score"]= torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
+                                                    requires_grad=False)
+        self.episode_sums["fitness_score"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                     requires_grad=False)
         self.episode_sums_eval = {
             name: -1 * torch.ones(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
             for name in self.reward_names}
         self.episode_sums_eval["total"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                       requires_grad=False)
-        self.episode_sums_eval["success"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
+        self.episode_sums_eval["fitness_score"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                             requires_grad=False)
         self.command_sums = {
             name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)

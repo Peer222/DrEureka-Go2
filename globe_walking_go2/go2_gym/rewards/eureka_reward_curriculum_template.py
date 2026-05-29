@@ -13,6 +13,9 @@ class EurekaRewardStub():
     def compute_fitness_score(self):
         return torch.ones_like(self.env.base_pos[:, 2])
 
+    def compute_curriculum_score(self):
+        return torch.ones_like(self.env.base_pos[:, 2])
+
 class EurekaReward(EurekaRewardStub):
 
 # INSERT EUREKA REWARD HERE

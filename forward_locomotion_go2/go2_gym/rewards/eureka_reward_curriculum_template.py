@@ -12,6 +12,12 @@ class EurekaReward():
 
 # INSERT EUREKA REWARD HERE
     
+
+    def compute_curriculum_score(self):
+        target_velocity = ... # INSERT TARGET HERE
+        lin_vel_error = torch.square(target_velocity - self.env.root_states[:, 7])
+        return torch.exp(-lin_vel_error / 0.25)
+
     def compute_fitness_score(self):
         target_velocity = 2.0
         lin_vel_error = torch.square(target_velocity - self.env.root_states[:, 7])

@@ -510,7 +510,7 @@ def main(cfg):
         stats["seed"] = cfg.seed
         full_stats = pd.concat([full_stats, stats], ignore_index=True)
         full_stats.to_csv("stats.csv", index=False)
-        # Select the best code sample based on the success rate
+
         best_sample_idx = np.argmax(stats["fitness_score_max"])
 
         best_fitness_score = np.max(stats["fitness_score_max"])

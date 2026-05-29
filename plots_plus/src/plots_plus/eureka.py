@@ -39,6 +39,14 @@ def create_plots(
             hue="version",
             filepath=graphics_dir / "critic_score.png",
         )
+    if "curriculum_score" in metrics_df.columns:
+        plots_plus.scatteredlineplot(
+            full_success_stats_df,
+            x="iteration",
+            y="curriculum_score",
+            hue="version",
+            filepath=graphics_dir / "curriculum_score.png",
+        )
     if "fitness_score_last" in full_success_stats_df.columns:
         plots_plus.scatteredlineplot(
             full_success_stats_df,
@@ -197,6 +205,20 @@ def create_plots(
         colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
         filepath=graphics_dir / "total_reward.png",
     )
+
+    if "curriculum_score" in metrics_df.columns:
+        curriculum_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "curriculum_score"].rename({"value": "curriculum_score"}, axis=1)  # type: ignore
+        plots_plus.multilineplot(
+            curriculum_score_df,
+            x="training_iteration",
+            y="curriculum_score",
+            lines="sample",
+            hue="iteration",
+            ylim=(-10, None),
+            colorpalette=plots_plus.colors.ITERATION_COLOR_MAP,
+            filepath=graphics_dir / "curriculum_score.png",
+        )
+
     fitness_score_df: pd.DataFrame = metrics_df[metrics_df["metric_name"] == "fitness_score"].rename({"value": "fitness_score"}, axis=1)  # type: ignore
     plots_plus.multilineplot(
         fitness_score_df,

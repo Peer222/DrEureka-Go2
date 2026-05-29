@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 
 def update_config(Cfg, command_config, reward_config, dr_config, eureka_target_velocity: Optional[float]):
@@ -51,7 +51,7 @@ def update_config(Cfg, command_config, reward_config, dr_config, eureka_target_v
 
 
 def train_mc(iterations, command_config, reward_config, dr_config, eureka_target_velocity=None,
-             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", num_eval_rollouts: int = 1, reward_struct: Optional[str] = None):
+             headless=True, no_wandb=False, wandb_group=None, wandb_project=None, wandb_entity=None, seed=0, device="cuda:0", num_eval_rollouts: int = 1, reward_struct: Optional[str] = None, checkpoint: Optional[Tuple[Path, int]] = None):
     import isaacgym
     assert isaacgym
     import wandb
@@ -108,9 +108,14 @@ def train_mc(iterations, command_config, reward_config, dr_config, eureka_target
 
     env = VelocityTrackingEasyEnv(sim_device=device, headless=headless, cfg=Cfg, reward_struct=reward_struct)  # type: ignore
     env = HistoryWrapper(env)
-
-    runner = Runner(env, device=device)
-    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb)
+    if checkpoint:
+      checkpoint_path = checkpoint[0]
+      starting_iteration = checkpoint[1]
+    else:
+      checkpoint_path = None
+      starting_iteration = 0
+    runner = Runner(env, checkpoint_path, device=device)
+    runner.learn(num_learning_iterations=int(iterations), init_at_random_ep_len=True, eval_freq=100, no_wandb=no_wandb, starting_iteration=starting_iteration)
 
     # log video of trained policy rollout
     logger.log(f"Start rollout... Running headless on cpu with video rendering", flush=True)

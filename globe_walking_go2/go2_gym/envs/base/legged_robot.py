@@ -272,14 +272,16 @@ class LeggedRobot(BaseTask):
             for i in range(len(self.reward_functions)):
                 name = self.reward_names[i]
                 rew = self.reward_functions[i]()
-                if "success" not in name:
+                if "fitness_score" not in name or "curriculum_score" not in name:
                     self.rew_buf += rew
                     if torch.sum(rew) >= 0:
                         self.rew_buf_pos += rew
                     elif torch.sum(rew) <= 0:
                         self.rew_buf_neg += rew
                 self.episode_sums[name] += rew
-            self.episode_sums["success"] += self.reward_container.compute_success()
+            self.episode_sums["fitness_score"] += self.reward_container.compute_fitness_score()
+            if getattr(self.reward_container, "curriculum_score", None):
+                self.episode_sums["curriculum_score"] += self.reward_container.curriculum_score()
         else:
             rew, rew_components = self.reward_container.compute_reward()
             self.rew_buf += rew
@@ -289,7 +291,9 @@ class LeggedRobot(BaseTask):
                     self.rew_buf_pos += rew_term
                 elif torch.sum(rew_term) <= 0:
                     self.rew_buf_neg += rew_term
-            self.episode_sums["success"] += self.reward_container.compute_success()
+            self.episode_sums["fitness_score"] += self.reward_container.compute_fitness_score()
+            if getattr(self.reward_container, "compute_curriculum_score", None):
+                self.episode_sums["curriculum_score"] += self.reward_container.compute_curriculum_score()
         self.episode_sums["total"] += self.rew_buf
 
         if self.cfg.commands.num_commands > 0:
@@ -1379,7 +1383,7 @@ class LeggedRobot(BaseTask):
             for name in self.reward_names}
         self.episode_sums["total"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                  requires_grad=False)
-        self.episode_sums["success"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
+        self.episode_sums["fitness_score"] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device,
                                                  requires_grad=False)
         self.command_sums = {
             name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)

@@ -10,8 +10,8 @@ def create_plots(
 
     metrics = rollout_stats_df.columns
 
-    fitness_score_df = rollout_stats_df[["time_(s)", "rollout", "rew_success"]]
-    fitness_score_df = fitness_score_df.rename({"rew_success": "fitness_score"}, axis=1)
+    fitness_score_df = rollout_stats_df[["time_(s)", "rollout", "rew_fitness_score"]]
+    fitness_score_df = fitness_score_df.rename({"rew_fitness_score": "fitness_score"}, axis=1)
     plots_plus.lineplot(
         fitness_score_df,
         x="time_(s)",
@@ -22,7 +22,7 @@ def create_plots(
     )
 
     rewards = {
-        m: m.split("rew_")[-1] for m in metrics if "rew" in m and "success" not in m
+        m: m.split("rew_")[-1] for m in metrics if "rew" in m and "fitness_score" not in m
     }
     rewards_df = rollout_stats_df[["time_(s)", "rollout", *rewards.keys()]]  # type: ignore
     rewards_df = rewards_df.rename(rewards, axis=1)

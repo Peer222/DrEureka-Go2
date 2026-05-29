@@ -145,6 +145,25 @@ def parse_generated_reward_functions(response_cur: str) -> str:
     return code_string
 
 
+def parse_curriculum_target(response_cur: str) -> float:
+    # Regex patterns to extract python code enclosed in LLM response
+    pattern = r"```target.*?(\d+\.?\d*).*?```"
+    target_string = None
+
+    found = re.finditer(pattern, response_cur, re.DOTALL)
+    for match in found:
+        target_string = match.group(1).strip()
+
+    if not target_string:
+        logging.warning(f"No curriculum target found!")
+        return 0
+    try:
+        return float(target_string)
+    except:
+        logging.warning(f"Could not parse curriculum target to float! \n\n{target_string}\n\n")
+        return 0
+
+
 def parse_critic_score(response_cur: str) -> float:
     # Regex patterns to extract python code enclosed in LLM response
     pattern = r"```score.*?(\d+\.?\d*).*?```"

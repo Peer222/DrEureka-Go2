@@ -12,6 +12,5 @@ class EurekaReward():
     
 # INSERT EUREKA REWARD HERE
 
-    # Success criteria as episode length
-    def compute_success(self):
+    def compute_fitness_score(self):
         return torch.ones_like(self.env.base_pos[:, 2])

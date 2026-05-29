@@ -107,6 +107,10 @@ def construct_run_log(stdout_str):
             key, val = line[0].strip(), line[1].strip()
             if key == "train/episode/rew success/mean":
                 key = "fitness_score"
+            elif key == "train/episode/rew fitness score/mean":
+                key = "fitness_score"
+            elif key == "train/episode/rew curriculum score/mean":
+                key = "curriculum_score"
             elif key == "timesteps" or key == "iterations":
                 key = key
             elif "train/episode/rew" in key:

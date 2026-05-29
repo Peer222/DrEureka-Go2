@@ -117,14 +117,19 @@ def convert_metric_series(series: List, train_iterations: int) -> pd.DataFrame:
     for i_idx, iteration in enumerate(series):
         for s_idx, sample in enumerate(iteration):
             for key, values in sample.items():
-                num_entries = len(values)
+                if key == "training_iteration":
+                    continue
                 if not iteration_interval:
+                    num_entries = len(values)
                     iteration_interval = list(
                         np.arange(0, train_iterations, train_iterations // num_entries)
                     )
+                if "training_iteration" not in sample.keys():
+                    df_struct["training_iteration"].extend(iteration_interval)
+                else:
+                    df_struct["training_iteration"].extend(sample["training_iteration"])
 
                 df_struct["value"].extend(values)
-                df_struct["training_iteration"].extend(iteration_interval)
                 df_struct["iteration"].extend([i_idx for _ in values])
                 df_struct["sample"].extend([s_idx for _ in values])
                 df_struct["metric_name"].extend([key for _ in values])

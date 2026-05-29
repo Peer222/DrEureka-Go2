@@ -7,6 +7,7 @@ import torch
 from ml_logger import logger
 from params_proto import PrefixProto
 from pathlib import Path
+from typing import Optional
 import copy
 
 from .actor_critic import ActorCritic
@@ -53,19 +54,13 @@ class RunnerArgs(PrefixProto, cli=False):
     max_iterations = 1500  # number of policy updates
 
     # logging
-    save_interval = 1000  # check for potential saves every this many iterations
+    save_interval = 200  # check for potential saves every this many iterations
     save_video_interval = 200
     log_freq = 20
 
-    # load and resume
-    resume = False
-    load_run = -1  # -1 = last run
-    checkpoint = -1  # -1 = last saved model
-    resume_path = None  # updated from load_run and chkpt
-
 
 class Runner:
-    def __init__(self, env, device='cpu'):
+    def __init__(self, env, checkpoint: Optional[Path] = None, device='cpu'):
         from .ppo import PPO
 
         self.device = device
@@ -76,6 +71,10 @@ class Runner:
                                       self.env.num_obs_history,
                                       self.env.num_actions,
                                       ).to(self.device)
+        if checkpoint:
+            weights = torch.load(checkpoint, map_location="cpu")
+            actor_critic.load_state_dict(state_dict=weights)
+        print(f"{checkpoint=}")
         self.alg = PPO(actor_critic, device=self.device)
         self.num_steps_per_env = RunnerArgs.num_steps_per_env
 
@@ -90,7 +89,7 @@ class Runner:
 
         self.env.reset()
 
-    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, eval_expert=False, no_wandb=False):
+    def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, eval_expert=False, no_wandb=False, starting_iteration: int = 0):
         # initialize writer
         assert logger.prefix, "you will overwrite the entire instrument server"
 
@@ -121,9 +120,10 @@ class Runner:
         if hasattr(self.env, "curriculum"):
             caches.__init__(curriculum_bins=len(self.env.curriculum))
 
+        self.current_learning_iteration = starting_iteration
         tot_iter = self.current_learning_iteration + num_learning_iterations
+        print(f"{starting_iteration=}; {num_learning_iterations=}")
         for it in range(self.current_learning_iteration, tot_iter):
-            start = time.time()
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
