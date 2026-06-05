@@ -305,7 +305,7 @@ def play_go2(
                 angular_velocities, columns=["angular_x", "angular_y", "angular_z"]
             ).round(2)
             global_linear_velocities_df = pd.DataFrame(
-                global_angular_velocities,
+                global_linear_velocities,
                 columns=["global_linear_x", "global_linear_y", "global_linear_z"],
             ).round(2)
             global_angular_velocities_df = pd.DataFrame(
