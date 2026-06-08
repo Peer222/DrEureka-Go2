@@ -55,6 +55,9 @@ def load_prompting(cfg):
 
 
 def get_curriculum_target(iteration: int, cfg, database_df: pd.DataFrame) -> float:
+    if not cfg.curriculum_target:
+        logging.warning(f"Using static target of 2 m/s!")
+        return 2.0
     prompts = load_prompting(cfg)
     logging.info(f"Generating curriculum target of {iteration}. iteration ...")
 
@@ -172,7 +175,7 @@ def construct_dialog(cfg, iteration: int, database_df: pd.DataFrame, curriculum_
             messages += [
                     {
                         "role": "assistant",
-                        "content": prefix + ancestor["reward_function"].item() + "```",
+                        "content": prefix + ancestor["reward_function"].item() + f"\n```",
                     }
                 ]
             epoch_freq = cfg.env.train_iterations // cfg.feedback_series_size

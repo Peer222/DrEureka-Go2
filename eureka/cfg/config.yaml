@@ -35,14 +35,15 @@ max_video_length: 10       # Maximum length of video in seconds (taken from end)
 
 topk_sampling: 8
 num_examples: 2
+curriculum_target: False
 
 optimization_target: "fitness_score_last"  # for v-eureka: critic_score, fitness_score_max or fitness_score_last
 prompt_collection: "default" # default, minimal, evolved, curriculum
 
 # GPU setup
-use_submitit: False        # set in submitit scripts (if set latter options are ignored)
-num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat file not found)
-processes_per_gpu: 2       # 3 execution failed in dry run and code stuck (original code probably had enough gpus to run all samples per iteration in parallel)
+use_submitit: True         # set in submitit scripts (if set latter options are ignored)
+num_gpus: 1                # for more GPUs fix setFreestGPU() call (gpu_stat file not found) (depricated)
+processes_per_gpu: 2       # 3 execution failed in dry run and code stuck (original code probably had enough gpus to run all samples per iteration in parallel) (depricated)
 
 # Weights and Biases
 use_wandb: True            # whether to use wandb for logging

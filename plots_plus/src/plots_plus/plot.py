@@ -281,7 +281,7 @@ def gridlineplot(
 
     groups = df.groupby(axes)
 
-    max_cols = 5
+    max_cols = 5  # change if names are too long
     nrows = int(np.ceil(len(groups) / max_cols))
     ncols = int(min(len(groups), max_cols))
     num_labels = len(df[hue].drop_duplicates())
