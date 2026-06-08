@@ -98,7 +98,9 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
 
 
 def get_mds(
-    texts: List[str], embeddings: np.ndarray, method: Literal["PCA", "t-SNE", "spectral"]
+    texts: List[str],
+    embeddings: np.ndarray,
+    method: Literal["PCA", "t-SNE", "spectral"],
 ) -> pd.DataFrame:
     if method == "PCA":
         solver = PCA(n_components=2)
@@ -119,11 +121,15 @@ def get_mds(
 
 
 def compute_mds_from_text(
-    args: Args, texts: List[str], text_type: str, method: Literal["PCA", "t-SNE", "spectral"]
+    args: Args,
+    texts: List[str],
+    text_type: str,
+    method: Literal["PCA", "t-SNE", "spectral"],
 ) -> pd.DataFrame:
     resultdir = args.resultdir if args.resultdir else args.runs[0]
     embedding_path = (
-        resultdir / "embeddings"
+        resultdir
+        / "embeddings"
         / f"{text_type}_{args.embedding_model.split('/')[-1]}.npy"
     )
     if (embedding_path).exists():
@@ -143,29 +149,34 @@ def compute_mds_from_text(
         mds_df = mds_df.rename({"text": "code"}, axis=1)
     return mds_df
 
+
 # TODO backtrack rewards from best incumbent and plot trajectory?
 if __name__ == "__main__":
     import tyro
 
     args = tyro.cli(Args)
-    assert len(args.runs) > 1 and args.resultdir or len(args.runs) == 1, "If multiple runs are shown, a result dir must be specified"
+    assert (
+        len(args.runs) > 1 and args.resultdir or len(args.runs) == 1
+    ), "If multiple runs are shown, a result dir must be specified"
     np.random.seed(args.seed)
 
     stats_df = pd.DataFrame()
     rewards_df = pd.DataFrame()
     for run_dir in args.runs:
-      _stats_df = pd.read_csv(run_dir / "stats.csv")
+        _stats_df = pd.read_csv(run_dir / "stats.csv")
 
-      version_order = []
-      match = re.search(".*/([^_]+)_.*", _stats_df["version"].iloc[0])
-      if match is None:
-          raise Exception(f"Unknown model version found: {_stats_df['version'].iloc[0]}")
-      version_order.append(match.group(1))
-      _stats_df["version"] = match.group(1)
-      stats_df = pd.concat([stats_df, _stats_df])
+        version_order = []
+        match = re.search(".*/([^_]+)_.*", _stats_df["version"].iloc[0])
+        if match is None:
+            raise Exception(
+                f"Unknown model version found: {_stats_df['version'].iloc[0]}"
+            )
+        version_order.append(match.group(1))
+        _stats_df["version"] = match.group(1)
+        stats_df = pd.concat([stats_df, _stats_df])
 
-      ### rewards
-      rewards_df = pd.concat([rewards_df, get_rewards(run_dir / "rewards")])
+        ### rewards
+        rewards_df = pd.concat([rewards_df, get_rewards(run_dir / "rewards")])
 
     stats_df.reset_index(inplace=True)
     rewards_df.reset_index(inplace=True)
@@ -190,10 +201,7 @@ if __name__ == "__main__":
         size="fitness_score",
         style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "rewards_pca.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "rewards_pca.png",
     )
 
     # t-SNE
@@ -214,10 +222,7 @@ if __name__ == "__main__":
         size="fitness_score",
         style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "rewards_t-sne.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "rewards_t-sne.png",
     )
 
     # Spectral Embedding
@@ -238,12 +243,8 @@ if __name__ == "__main__":
         size="fitness_score",
         style="seed" if len(args.runs) > 1 else None,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "rewards_spectral.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "rewards_spectral.png",
     )
-
 
     ### reward names
     all_names, names_per_iteration, best_names, counts = get_reward_names(stats_df)
@@ -269,10 +270,7 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "reward_names_pca.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "reward_names_pca.png",
     )
 
     # t-SNE
@@ -295,10 +293,7 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "reward_names_t-sne.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "reward_names_t-sne.png",
     )
 
     # Spectral Embedding
@@ -321,10 +316,7 @@ if __name__ == "__main__":
         size="count",
         colorpalette=LLM_COLOR_MAP,
         alpha=0.75,
-        filepath=resultdir
-        / "graphics"
-        / "gen_analysis"
-        / "reward_names_spectral.png",
+        filepath=resultdir / "graphics" / "gen_analysis" / "reward_names_spectral.png",
     )
 
     if args.resultdir:

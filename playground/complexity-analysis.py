@@ -51,20 +51,24 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
     return rewards_df
 
 
-def analyze_reward_complexity(args: Args, stats_df: pd.DataFrame, rewards_df: pd.DataFrame):
+def analyze_reward_complexity(
+    args: Args, stats_df: pd.DataFrame, rewards_df: pd.DataFrame
+):
     complexity_data = []
     for index, sample in stats_df.iterrows():
         reward = rewards_df.iloc[index]["content"]
 
-        complexity_data.append({
-            "task": sample["task"],
-            "version": sample["version"],
-            "seed": sample["seed"],
-            "iteration": sample["iteration"],
-            "sample": sample["sample"],
-            "fitness_score_max": sample["fitness_score_max"],
-            "reward_length": len(reward),
-        })
+        complexity_data.append(
+            {
+                "task": sample["task"],
+                "version": sample["version"],
+                "seed": sample["seed"],
+                "iteration": sample["iteration"],
+                "sample": sample["sample"],
+                "fitness_score_max": sample["fitness_score_max"],
+                "reward_length": len(reward),
+            }
+        )
 
     complexity_df = pd.DataFrame(complexity_data)
     version_order = complexity_df["version"].drop_duplicates().to_list()
@@ -85,21 +89,28 @@ def analyze_reward_complexity(args: Args, stats_df: pd.DataFrame, rewards_df: pd
     )
     bb_complexity_df = complexity_df[complexity_df["task"] == "Ball Balancing"]
     correlation = bb_complexity_df[["fitness_score_max", "reward_length"]].corr("spearman")  # type: ignore
-    logging.info(f"Ball Balancing: Reward length - fitness score correlation (spearman): {correlation}")
+    logging.info(
+        f"Ball Balancing: Reward length - fitness score correlation (spearman): {correlation}"
+    )
     plots_plus.scatterplot(bb_complexity_df, "reward_length", "fitness_score_max", hue="version", filepath=args.resultdir / "bb_fitness_complexity.png")  # type: ignore
 
     fl_complexity_df = complexity_df[complexity_df["task"] == "Forward Locomotion"]
     correlation = fl_complexity_df[["fitness_score_max", "reward_length"]].corr("spearman")  # type: ignore
-    logging.info(f"Forward Locomotion: Reward length - fitness score correlation (spearman): {correlation}")
+    logging.info(
+        f"Forward Locomotion: Reward length - fitness score correlation (spearman): {correlation}"
+    )
     plots_plus.scatterplot(fl_complexity_df, "reward_length", "fitness_score_max", hue="version", filepath=args.resultdir / "fl_fitness_complexity.png")  # type: ignore
     return complexity_df
+
 
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     import tyro
 
     args = tyro.cli(Args, description="Complexity Analysis based on reward code length")
-    assert len(args.runs) > 1 and args.resultdir or len(args.runs) == 1, "If multiple runs are shown, a result dir must be specified"
+    assert (
+        len(args.runs) > 1 and args.resultdir or len(args.runs) == 1
+    ), "If multiple runs are shown, a result dir must be specified"
 
     stats_df = pd.DataFrame()
     rewards_df = pd.DataFrame()
@@ -109,7 +120,9 @@ if __name__ == "__main__":
         version_order = []
         match = re.search(".*/([^_]+)_.*", _stats_df["version"].iloc[0])
         if match is None:
-            raise Exception(f"Unknown model version found: {_stats_df['version'].iloc[0]}")
+            raise Exception(
+                f"Unknown model version found: {_stats_df['version'].iloc[0]}"
+            )
         version_order.append(match.group(1))
         _stats_df["version"] = match.group(1)
         if "GW" in run_dir.stem:
