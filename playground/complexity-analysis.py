@@ -6,6 +6,7 @@ import re
 import sys
 from dataclasses import dataclass
 import logging
+import python_minifier
 import plots_plus
 
 
@@ -27,21 +28,36 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
         match.group(1)  # iteration
 
         # read lines and remove comments and strip the code
-        content = ""
+        stripped = ""
+        reward_code = ""
         with open(reward_file, "r") as f:
             while True:
                 line = f.readline()
                 if line == "":
                     break
                 stripped_line = line.strip().split("#")[0]
-                content += stripped_line + "\n"
+                stripped += stripped_line + "\n"
+                if "import *" not in line:
+                    reward_code += line
 
-        logging.debug(content)
+        logging.debug(stripped)
+        try:
+            compressed = python_minifier.minify(
+                reward_code,
+                remove_annotations=True,
+                remove_literal_statements=True,
+                rename_globals=True,
+            )
+        except:
+            compressed = ""
+        logging.debug(compressed)
+
         rewards.append(
             {
                 "iteration": int(match.group(1)),
                 "sample": int(match.group(2)),
-                "content": content,
+                "stripped": stripped,
+                "compressed": compressed,
             }
         )
     rewards_df: pd.DataFrame = pd.DataFrame(rewards).sort_values(
@@ -56,7 +72,11 @@ def analyze_reward_complexity(
 ):
     complexity_data = []
     for index, sample in stats_df.iterrows():
-        reward = rewards_df.iloc[index]["content"]
+        stripped_reward = rewards_df.iloc[index]["stripped"]
+        compressed_reward = rewards_df.iloc[index]["compressed"]
+        # skips invalid code
+        if not len(compressed_reward):
+            continue
 
         complexity_data.append(
             {
@@ -66,7 +86,8 @@ def analyze_reward_complexity(
                 "iteration": sample["iteration"],
                 "sample": sample["sample"],
                 "fitness_score_max": sample["fitness_score_max"],
-                "reward_length": len(reward),
+                "stripped_reward_length": len(stripped_reward),
+                "compressed_reward_length": len(compressed_reward),
             }
         )
 
@@ -74,32 +95,34 @@ def analyze_reward_complexity(
     version_order = complexity_df["version"].drop_duplicates().to_list()
     complexity_df.to_csv(args.resultdir / "reward_complexity.csv")  # type: ignore
 
-    logging.info(complexity_df["reward_length"].describe())
-    plots_plus.gridlineplot(
-        complexity_df,
-        x="iteration",
-        y="reward_length",
-        hue="version",
-        axes="task",
-        colorpalette=plots_plus.colors.LLM_COLOR_MAP,
-        hue_order=version_order,
-        ylim=(0, None),
-        alpha=0.75,
-        filepath=args.resultdir / "complexity.png",  # type: ignore
-    )
-    bb_complexity_df = complexity_df[complexity_df["task"] == "Ball Balancing"]
-    correlation = bb_complexity_df[["fitness_score_max", "reward_length"]].corr("spearman")  # type: ignore
-    logging.info(
-        f"Ball Balancing: Reward length - fitness score correlation (spearman): {correlation}"
-    )
-    plots_plus.scatterplot(bb_complexity_df, "reward_length", "fitness_score_max", hue="version", filepath=args.resultdir / "bb_fitness_complexity.png")  # type: ignore
+    for type in ["stripped_reward_length", "compressed_reward_length"]:
+        prefix = type.split("_")[0]
+        logging.info(complexity_df[type].describe())
+        plots_plus.gridlineplot(
+            complexity_df,
+            x="iteration",
+            y=type,
+            hue="version",
+            axes="task",
+            colorpalette=plots_plus.colors.LLM_COLOR_MAP,
+            hue_order=version_order,
+            ylim=(0, None),
+            alpha=0.75,
+            filepath=args.resultdir / f"{prefix}_complexity.png",  # type: ignore
+        )
+        bb_complexity_df = complexity_df[complexity_df["task"] == "Ball Balancing"]
+        correlation = bb_complexity_df[["fitness_score_max", type]].corr("spearman")  # type: ignore
+        logging.info(
+            f"Ball Balancing: {prefix} Reward length - fitness score correlation (spearman): {correlation}"
+        )
+        plots_plus.scatterplot(bb_complexity_df, type, "fitness_score_max", hue="version", filepath=args.resultdir / f"bb_fitness_{prefix}_complexity.png")  # type: ignore
 
-    fl_complexity_df = complexity_df[complexity_df["task"] == "Forward Locomotion"]
-    correlation = fl_complexity_df[["fitness_score_max", "reward_length"]].corr("spearman")  # type: ignore
-    logging.info(
-        f"Forward Locomotion: Reward length - fitness score correlation (spearman): {correlation}"
-    )
-    plots_plus.scatterplot(fl_complexity_df, "reward_length", "fitness_score_max", hue="version", filepath=args.resultdir / "fl_fitness_complexity.png")  # type: ignore
+        fl_complexity_df = complexity_df[complexity_df["task"] == "Forward Locomotion"]
+        correlation = fl_complexity_df[["fitness_score_max", type]].corr("spearman")  # type: ignore
+        logging.info(
+            f"Forward Locomotion: {prefix} Reward length - fitness score correlation (spearman): {correlation}"
+        )
+        plots_plus.scatterplot(fl_complexity_df, type, "fitness_score_max", hue="version", filepath=args.resultdir / f"fl_fitness_{prefix}_complexity.png")  # type: ignore
     return complexity_df
 
 
