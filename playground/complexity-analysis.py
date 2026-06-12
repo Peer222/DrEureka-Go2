@@ -48,6 +48,7 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
                 remove_literal_statements=True,
                 rename_globals=True,
             )
+            compressed = compressed.replace("torch.", "")
         except:
             compressed = ""
         logging.debug(compressed)
@@ -56,6 +57,7 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
             {
                 "iteration": int(match.group(1)),
                 "sample": int(match.group(2)),
+                "original": reward_code,
                 "stripped": stripped,
                 "compressed": compressed,
             }
@@ -74,6 +76,7 @@ def analyze_reward_complexity(
     for index, sample in stats_df.iterrows():
         stripped_reward = rewards_df.iloc[index]["stripped"]
         compressed_reward = rewards_df.iloc[index]["compressed"]
+        original_reward = rewards_df.iloc[index]["original"]
         # skips invalid code
         if not len(compressed_reward):
             continue
@@ -85,9 +88,12 @@ def analyze_reward_complexity(
                 "seed": sample["seed"],
                 "iteration": sample["iteration"],
                 "sample": sample["sample"],
+                "num_reward_functions": sample["num_reward_functions"],
                 "fitness_score_max": sample["fitness_score_max"],
+                "original_reward_length": len(original_reward),
                 "stripped_reward_length": len(stripped_reward),
                 "compressed_reward_length": len(compressed_reward),
+                "compressed_reward_length_per_component": len(compressed_reward) / max(sample["num_reward_functions"], 1),
             }
         )
 
@@ -95,8 +101,8 @@ def analyze_reward_complexity(
     version_order = complexity_df["version"].drop_duplicates().to_list()
     complexity_df.to_csv(args.resultdir / "reward_complexity.csv")  # type: ignore
 
-    for type in ["stripped_reward_length", "compressed_reward_length"]:
-        prefix = type.split("_")[0]
+    for type in ["stripped_reward_length", "compressed_reward_length", "original_reward_length", "compressed_reward_length_per_component"]:
+        prefix = type.split("_")[0] if type != "compressed_reward_length_per_component" else "compressed_per_component"
         logging.info(complexity_df[type].describe())
         plots_plus.gridlineplot(
             complexity_df,
@@ -167,6 +173,7 @@ if __name__ == "__main__":
     rewards_df.reset_index(inplace=True)
     rewards_df["seed"] = stats_df["seed"]
     rewards_df["version"] = stats_df["version"]
+    rewards_df["task"] = stats_df["task"]
 
     resultdir = args.resultdir if args.resultdir else args.runs[0]
     resultdir.mkdir(exist_ok=True)

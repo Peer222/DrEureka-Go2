@@ -18,7 +18,7 @@ from enum import Enum
 class Args:
     runs: List[Path]
     """Path to stats.csv files from eureka runs (multiple seeds)"""
-    model: str = "openai/gpt-oss-20b"  # "Qwen/Qwen3-14B-AWQ"
+    model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8" #"openai/gpt-oss-20b"  # "Qwen/Qwen3-14B-AWQ"
     """Name of the huggingface embedding model name"""
     models_dir: Path = Path("/bigwork/nhwpduep/master_thesis/models/")
     """Path to model root directory"""
