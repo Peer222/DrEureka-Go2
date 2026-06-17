@@ -51,6 +51,9 @@ def get_reward_names(
     stats_df["reward_names"] = stats_df["reward_names"].apply(
         lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
+    stats_df["reward_names"] = stats_df["reward_names"].apply(
+        lambda x: [n.replace("reward", "").strip() for n in x]
+    )
 
     all = pd.Series([n for names in stats_df["reward_names"].values for n in names])
     counts = all.value_counts(sort=False).tolist()

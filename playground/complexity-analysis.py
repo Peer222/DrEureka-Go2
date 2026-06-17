@@ -30,20 +30,22 @@ def get_rewards(reward_dir: Path) -> pd.DataFrame:
         # read lines and remove comments and strip the code
         stripped = ""
         reward_code = ""
+        compressed_code = ""
         with open(reward_file, "r") as f:
             while True:
                 line = f.readline()
                 if line == "":
                     break
+                reward_code += line
                 stripped_line = line.strip().split("#")[0]
                 stripped += stripped_line + "\n"
-                if "import *" not in line:
-                    reward_code += line
+                if "import *" not in line :
+                    compressed_code += line
 
         logging.debug(stripped)
         try:
             compressed = python_minifier.minify(
-                reward_code,
+                compressed_code,
                 remove_annotations=True,
                 remove_literal_statements=True,
                 rename_globals=True,
@@ -121,14 +123,16 @@ def analyze_reward_complexity(
         logging.info(
             f"Ball Balancing: {prefix} Reward length - fitness score correlation (spearman): {correlation}"
         )
-        plots_plus.scatterplot(bb_complexity_df, type, "fitness_score_max", hue="version", filepath=args.resultdir / f"bb_fitness_{prefix}_complexity.png")  # type: ignore
+        plots_plus.scatterplot(bb_complexity_df, type, "fitness_score_max", hue="version", ylim=(-20, None), alpha=0.75, filepath=args.resultdir / f"bb_fitness_{prefix}_complexity.png")  # type: ignore
 
         fl_complexity_df = complexity_df[complexity_df["task"] == "Forward Locomotion"]
         correlation = fl_complexity_df[["fitness_score_max", type]].corr("spearman")  # type: ignore
         logging.info(
             f"Forward Locomotion: {prefix} Reward length - fitness score correlation (spearman): {correlation}"
         )
-        plots_plus.scatterplot(fl_complexity_df, type, "fitness_score_max", hue="version", filepath=args.resultdir / f"fl_fitness_{prefix}_complexity.png")  # type: ignore
+        plots_plus.scatterplot(fl_complexity_df, type, "fitness_score_max", hue="version", ylim=(-20, None), alpha=0.75, filepath=args.resultdir / f"fl_fitness_{prefix}_complexity.png")  # type: ignore
+
+        plots_plus.gridscatterplot(complexity_df, type, "fitness_score_max", hue="version", axes="task", colorpalette=plots_plus.colors.LLM_COLOR_MAP, hue_order=version_order, ylim=(-20, None), alpha=0.75, filepath=args.resultdir / f"fitness_{prefix}_complexity.png")  # type: ignore
     return complexity_df
 
 
