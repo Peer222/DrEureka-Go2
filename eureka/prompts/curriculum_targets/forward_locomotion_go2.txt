@@ -5,7 +5,7 @@ def compute_task_score(self):
         lin_vel_error = torch.square(target_velocity - self.env.root_states[:, 7])
         return torch.exp(-lin_vel_error / 0.25)
 ```  
-The maximum task/curriculum score that could be reached theoretically is 1000. In practice, scores above 700 are reasonable.  
+The maximum task/curriculum score that could be reached in theory is 1000. In practice, scores above 700 are reasonable.  
 
 {target_feedback}  
 

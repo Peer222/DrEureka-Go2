@@ -42,7 +42,7 @@ def create_plots(
         y="fitness_score_max",
         hue="version",
         axes="task",
-        ylim=(-10, full_success_stats_df["fitness_score_max"].max() + 10),
+        ylim=(-10, full_success_stats_df["fitness_score_max"].max() + 10),  # (-10, None)
         alpha=0.75,
         errorbar=None,
         markers=True,
@@ -246,12 +246,12 @@ def create_plots(
             correlations_df["version"] = index[0]
             correlations_df["task"] = index[1]
             full_correlations_df = pd.concat([full_correlations_df, correlations_df])
-        plots_plus.lineplot(
+        plots_plus.gridlineplot(
             full_correlations_df,
             x="iteration",
             y=f"{corr_method}_correlation",
             hue="version",
-            style="task",
+            axes="task",
             ylim=(-1.1, 1.1),
             colorpalette=plots_plus.colors.LLM_COLOR_MAP,
             hue_order=version_order,
@@ -275,7 +275,7 @@ if __name__ == "__main__":
         """Path to run directory"""
         result_dir: Path
         """directory in which graphics are stored"""
-        train_iterations: int  # TODO relative scale or short for forward locomotion
+        train_iterations: int = 5000  # TODO relative scale or short for forward locomotion
         """Number of iterations used for training of samples"""
 
     args = tyro.cli(Args)

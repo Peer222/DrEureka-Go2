@@ -41,6 +41,7 @@ def scatterplot(
     ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
     hue_order: Optional[List[str]] = None,
     style: Optional[str] = None,
+    alpha: float = 1.0,
 ):
     df = clean_df_labels(df)
     x = clean_variable(x)
@@ -54,7 +55,7 @@ def scatterplot(
 
     plt.figure(figsize=FIGSIZE)
     ax = sns.scatterplot(
-        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style
+        df, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, style=style, alpha=alpha
     )
 
     ax.set_xlim(*get_limits(df, x, xlim))  # type: ignore
@@ -281,11 +282,11 @@ def gridlineplot(
 
     groups = df.groupby(axes)
 
-    max_cols = 5  # change if names are too long
+    max_cols = 5
     nrows = int(np.ceil(len(groups) / max_cols))
     ncols = int(min(len(groups), max_cols))
     num_labels = len(df[hue].drop_duplicates())
-    legend_cols = 2 * ncols if num_labels > 2 * ncols else num_labels
+    legend_cols = 2 * ncols if num_labels > 2 * ncols else num_labels  # change if names are too long
     fig, axs, legend_ax = axgrid(
         nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
     )
@@ -307,7 +308,7 @@ def gridlineplot(
 
         ax.set_title(name)
         ax.set_xlim(*get_limits(df, x, xlim))
-        ax.set_ylim(*get_limits(df, y, ylim))
+        ax.set_ylim(*get_limits(df, y, ylim))  # ax.set_ylim(*get_limits(df, y, (-10, group[y].max().item() + 10)))
 
         if markers == "max":
             by = [x, hue]
@@ -321,6 +322,94 @@ def gridlineplot(
             sns.scatterplot(
                 group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha
             )
+
+        ax.tick_params(direction="in", length=0)
+        ax.set_axisbelow(True)
+        sns.despine(left=True, bottom=True, right=True, top=True)
+        ax.grid(True, color=Color.SUBTLE_GREY)
+        if x == "Iteration":
+            ax.set_xticks(np.arange(0, len(df[x].drop_duplicates()), 1))
+
+    # build single figure legend
+    legend_items = OrderedDict()
+    for ax in axs:
+        handles, labels = ax.get_legend_handles_labels()
+        for h, l in zip(handles, labels):
+            #legend_items[clean_variable(l)] = h  # deduplicate by label
+            legend_items[l] = h  # deduplicate by label
+        axlegend = ax.get_legend()
+        if axlegend:
+            axlegend.remove()
+    legend_ax.legend(
+        legend_items.values(),
+        legend_items.keys(),
+        loc="upper center",
+        ncol=legend_cols,
+        title=hue,
+        frameon=False,
+        handletextpad=0.1,
+    )
+
+    # Remove unused subplots
+    for ax in axs[len(groups) :]:
+        fig.delaxes(ax)
+
+    if title:
+        plt.title(title)
+    plot(filepath)
+
+
+def gridscatterplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: str,
+    axes: str,
+    colorpalette: Union[List, mpl.colors.Colormap, None] = ITERATION_COLOR_MAP,
+    filepath: Optional[Path] = None,
+    title: Optional[str] = None,
+    xlim: Union[Tuple[Union[float, None], Union[float, None]], str] = "minmax",
+    ylim: Union[Tuple[Union[float, None], Union[float, None]], str] = "auto",
+    hue_order: Optional[List[str]] = None,
+    alpha: float = 1.0,
+):
+    df = clean_df_labels(df)
+    x = clean_variable(x)
+    y = clean_variable(y)
+    hue = clean_variable(hue)
+    axes = clean_variable(axes)
+
+    colorpalette = strip_palette(colorpalette, df, hue)
+
+    groups = df.groupby(axes)
+
+    max_cols = 5
+    nrows = int(np.ceil(len(groups) / max_cols))
+    ncols = int(min(len(groups), max_cols))
+    num_labels = len(df[hue].drop_duplicates())
+    legend_cols = 2# * ncols if num_labels > 2 * ncols else num_labels  # change if names are too long
+    fig, axs, legend_ax = axgrid(
+        nrows, ncols, legend_height=np.ceil(num_labels / legend_cols) * 0.3
+    )
+
+    if not hue_order:
+        names: List[str] = list(df[hue].drop_duplicates().sort_values())
+        if len(names) > 1:
+            cmap = mpl.colors.LinearSegmentedColormap.from_list(
+                "multiline", colorpalette, N=len(names)
+            )
+            colorpalette = [cmap(i) for i in np.linspace(0, 1, len(names))]
+        hue_order = names
+
+    for ax, (name, group) in zip(axs, groups):
+        name = clean_variable(str(name))
+        sns.scatterplot(
+            group, x=x, y=y, hue=hue, palette=colorpalette, hue_order=hue_order, ax=ax, alpha=alpha
+        )
+
+        ax.set_title(name)
+        ax.set_xlim(*get_limits(df, x, xlim))
+        ax.set_ylim(*get_limits(df, y, (-25, group[y].max().item() + 25)))
 
         ax.tick_params(direction="in", length=0)
         ax.set_axisbelow(True)

@@ -361,3 +361,13 @@ __all__ = [
 
 def __dir__():
     return __all__
+
+
+if __name__ == "__main__":
+    with open("/bigwork/nhwpduep/master_thesis/dr-eureka-go2/runs/eureka-curriculum/2026-05-27_12:40:53/metrics.json", "r") as f:
+        json_data = json.load(f)
+        for i, d in enumerate(json_data):
+            print(i)
+            df = pd.DataFrame(d)
+
+        convert_metric_series(json_data, 200)

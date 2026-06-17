@@ -543,8 +543,9 @@ def main(cfg):
     full_stats["version"] = f"{cfg.model}_{TIMESTAMP}"
     full_stats.to_csv("stats.csv")
     if cfg.use_wandb:
-        table = wandb.Table(dataframe=full_stats)
-        run.log({"Stats": table})  # type: ignore
+        # table = wandb.Table(dataframe=full_stats)
+        # run.log({"Stats": table})  # type: ignore
+        pass
     with open("metrics.json", "w") as f:
         json.dump(full_metrics, f)
 
@@ -563,9 +564,9 @@ def main(cfg):
     )
 
     ### Defaults to best reward configuration
-    best_reward = file_to_string(max_reward_code_path)  # type: ignore
-    with open(output_file, "w") as file:
-        file.writelines(best_reward + "\n")
+    # best_reward = file_to_string(max_reward_code_path)  # type: ignore
+    # with open(output_file, "w") as file:
+    #    file.writelines(best_reward + "\n")
 
     ### Get run directory of best-performing policy
     max_reward_log_path = Path("logs") / f"{max_reward_code_path.stem}.log"
