@@ -68,4 +68,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python eureka-evolved.py model=$MODEL env=$2 use_submitit=1 port=$PORT seed=$3
+python eureka-evolved.py model=$MODEL env=$2 use_submitit=1 port=$PORT seed=$3 prompt_collection=evolved

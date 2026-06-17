@@ -9,9 +9,11 @@
 #SBATCH -J train
 #SBATCH -o slurm_logs/train/%j.out
 #SBATCH --time=1-00:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
 
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $1 <environment> $2 <iterations> $3 <reward ["original", "eureka", "eureka_original"]> $4 <dr ["original", "eureka", "eureka_original", "off"]>"
+
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $1 <environment> $2 <iterations> $3 <reward ["original", "eureka", "eureka_original"]> $4 <dr ["original", "eureka", "eureka_original", "off"] $5 seed>"
     exit 1
 fi
 
@@ -29,4 +31,4 @@ rm -rf ~/.cache/torch_extensions
 echo "Starting Gym..."
 # /bigwork/nhwpduep/master_thesis/dr-eureka-go2/runs/eureka/2026-02-21_09:35:30_GL_Go2_Qwen-30BQ-nt/1/14_2026-02-22_10:16:49/checkpoints
 export WANDB_MODE="offline"
-python "$1/scripts/train.py" --iterations "$2" --headless --dr-config "$4" --reward-config "$3" --wandb-group "train/$1" --device "cuda:0" --no-wandb
+python "$1/scripts/train.py" --iterations "$2" --headless --dr-config "$4" --reward-config "$3" --wandb-group "train/$1" --device "cuda:0" --no-wandb --seed "$5"

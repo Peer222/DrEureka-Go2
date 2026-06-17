@@ -8,12 +8,12 @@
 
 #SBATCH -J vl-vllm-eureka-submitit
 #SBATCH -o slurm_logs/vl-vllm-eureka-submitit/%j.out
-#SBATCH --time=8-00:00:00
+#SBATCH --time=4-00:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 
 if [ "$#" -ne 3 ]; then
-    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8] $2 <environment> $3 <seed>"
+    echo "Usage: $1 <llm-type> [Qwen/Qwen3-VL-30B-A3B-Thinking-FP8, Qwen/Qwen3.5-27B-FP8, Qwen/Qwen3.6-27B-FP8] $2 <environment> $3 <seed>"
     exit 1
 fi
 
@@ -57,4 +57,4 @@ echo ""
 echo "Starting Gym..."
 export WANDB_MODE="offline"
 
-python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3 use_custom_params=1
+python v-eureka.py model=$MODEL env=$2 use_submitit=1 seed=$3

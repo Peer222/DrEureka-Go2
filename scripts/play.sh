@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=tnt
+#SBATCH --reservation=tnt
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32G
@@ -28,4 +29,4 @@ rm -rf ~/.cache/torch_extensions
 echo "Starting Gym..."
 # /bigwork/nhwpduep/master_thesis/dr-eureka-go2/runs/eureka/2026-02-21_09:35:30_GL_Go2_Qwen-30BQ-nt/1/14_2026-02-22_10:16:49/checkpoints
 export WANDB_MODE="offline"
-python "$1/scripts/play.py" --headless --run "$2" --dr-config eureka --num-rollouts 5 --load-reward
+python "$1/scripts/play.py" --headless --run "$2" --dr-config eureka --num-rollouts 5 --file-prefix "HD-"

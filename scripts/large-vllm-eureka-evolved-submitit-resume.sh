@@ -64,6 +64,6 @@ echo ""
 
 echo "Starting Gym..."
 export WANDB_MODE="offline"
-python eureka-evolved.py model=$MODEL env=$2 resume=True stats_file=$4 use_submitit=1 seed=$3
+python eureka-evolved.py model=$MODEL env=$2 resume=True stats_file=$4 use_submitit=1 seed=$3 prompt_collection=evolved
 
 kill -0 $VLLM_PID

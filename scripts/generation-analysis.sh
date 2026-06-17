@@ -11,9 +11,6 @@
 module load Miniconda3
 conda activate vllm
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: $1 /path/to/stats.csv"
-  exit 1
-fi
+echo "Usage: $1 resultdir $2+ /paths/to/stats.csv"
 
-python playground/generation-analysis.py --statspath $1
+python playground/generation-analysis.py --resultdir "$1" --runs "${@:2}"
