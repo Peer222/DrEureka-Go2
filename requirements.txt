@@ -1,3 +1,4 @@
+adjustText==1.3.0
 aiofile==3.9.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.4.4
@@ -9,6 +10,7 @@ anyio==4.5.2
 argcomplete==3.6.3
 async-timeout==4.0.3
 attrs==25.3.0
+black==24.8.0
 bokeh==3.1.1
 boto3==1.37.38
 botocore==1.37.38
@@ -20,19 +22,26 @@ cffi==1.17.1
 charset-normalizer==3.4.4
 click==8.1.8
 cloudpickle==1.3.0
+colorlog==6.10.1
 contourpy==1.1.1
 cycler==0.12.1
+Cython==3.2.4
 decorator==4.4.2
 dill==0.4.0
 distro==1.9.0
+docstring_parser==0.17.0
+-e git+ssh://git@github.com/Peer222/DrEureka-Go2.git@37df63a0a455793426febadd213bf8852c4d1c06#egg=dr_eureka
 eval_type_backport==0.2.2
 exceptiongroup==1.3.0
 expandvars==1.1.2
 fonttools==4.57.0
+-e git+ssh://git@github.com/Peer222/DrEureka-Go2.git@37df63a0a455793426febadd213bf8852c4d1c06#egg=forward_locomotion_go2&subdirectory=forward_locomotion_go2
 frozenlist==1.5.0
 functional-notations==0.5.2
+future==1.0.0
 gitdb==4.0.12
 GitPython==3.1.45
+-e git+ssh://git@github.com/Peer222/DrEureka-Go2.git@37df63a0a455793426febadd213bf8852c4d1c06#egg=globe_walking_go2&subdirectory=globe_walking_go2
 google-api-core==2.28.1
 google-api-python-client==2.187.0
 google-auth==2.43.0
@@ -57,8 +66,10 @@ hydra-core==1.3.2
 idna==3.11
 imageio==2.35.1
 imageio-ffmpeg==0.5.1
-importlib_metadata==8.5.0
+importlib-metadata==4.13.0
 importlib_resources==6.4.5
+# Editable install with no version control (isaacgym==1.0rc4)
+-e /bigwork/nhwpduep/master_thesis/isaacgym/python
 jaynes==0.9.11
 Jinja2==3.1.6
 jiter==0.9.1
@@ -80,12 +91,15 @@ ninja==1.13.0
 numpy==1.23.5
 omegaconf==2.3.0
 openai==0.28.0
+opencv-python==4.13.0.92
 packaging==25.0
 pandas==2.0.3
 params-proto==2.10.5
+pathspec==0.12.1
 pillow==10.4.0
 platformdirs==4.3.6
 plotly==6.4.0
+-e git+ssh://git@github.com/Peer222/DrEureka-Go2.git@37df63a0a455793426febadd213bf8852c4d1c06#egg=plots_plus&subdirectory=plots_plus
 proglog==0.1.12
 promise==2.3
 propcache==0.2.0
@@ -100,6 +114,7 @@ pydantic_core==2.27.2
 pyparsing==3.1.4
 pytest-runner==6.0.1
 python-dateutil==2.9.0.post0
+python_minifier==3.2.0
 pytz==2025.2
 PyWavelets==1.4.1
 PyYAML==6.0.3
@@ -120,11 +135,13 @@ sanic-routing==22.3.0
 scikit-image==0.21.0
 scikit-video==1.1.11
 scipy==1.10.1
+seaborn==0.13.2
 sentry-sdk==2.43.0
 six==1.17.0
 smmap==5.0.2
 sniffio==1.3.1
 soundfile==0.13.1
+submitit==1.4.5
 termcolor==2.4.0
 tifffile==2023.7.10
 tomli==2.3.0
@@ -133,8 +150,10 @@ torchaudio==0.10.0+cu113
 torchvision==0.11.1+cu113
 tornado==6.4.2
 tqdm==4.67.1
+typeguard==4.4.0
 typing==3.7.4.3
 typing_extensions==4.13.2
+tyro==1.0.5
 tzdata==2025.2
 ujson==5.10.0
 uritemplate==4.1.1
